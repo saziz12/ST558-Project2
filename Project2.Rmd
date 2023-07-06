@@ -1,0 +1,73 @@
+---
+title: "ST558 - Project 2"
+author: "Sandra Aziz, Simon Weisenhorn"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+
+
+
+## Loading Libraries
+Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
+```{r 1, message=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+```
+
+## Reading in Dataset
+Now, we will read in our data set.
+```{r 2}
+# read in the data
+data <- read_csv("../OnlineNewsPopularity.csv", show_col_types=FALSE)
+head(data)
+
+# subset for channel
+channel_data <- data %>% filter(data_channel_is_lifestyle == 1)
+head(channel_data)
+```
+
+## Some Summaries
+```{r 3}
+# summary stats for shares
+summary_stats <- summary(channel_data$shares)
+summary_stats
+
+# contingency table for number of videos per url
+videos_table <- table(channel_data$num_videos)
+videos_table
+
+# ggplot of number of words in the content vs shares
+ggplot(channel_data, aes(x = n_tokens_content, y = shares)) +
+geom_point() +
+labs(x = "Number of words in the content", y = "Number of Shares") +
+ggtitle("Shares vs. Number of words in the content")
+
+# ggplot of positive word rate vs shares
+ggplot(channel_data, aes(x = rate_positive_words, y = shares)) +
+geom_point() +
+labs(x = "Positive Word Rate", y = "Number of Shares") +
+ggtitle("Shares vs. Positive Word Rate")
+
+# ggplot of negative word rate vs shares
+ggplot(channel_data, aes(x = rate_negative_words, y = shares)) +
+geom_point() +
+labs(x = "Negative Word Rate", y = "Number of Shares") +
+ggtitle("Shares vs. Negative Word Rate")
+```
+
+
+
+
+
+
+
+
