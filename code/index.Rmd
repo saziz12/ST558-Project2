@@ -18,6 +18,8 @@ Before we load our data or do any analysis, we will first load the libraries nee
 ```{r libraries, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(ggplot2)
+library(stringr) # for str_to_title()
+library(caret)
 ```
 
 ## Reading in Dataset
@@ -46,6 +48,8 @@ data_subsetter <- function(channelOfInterest) {
   drops <- names(thinner)
   data2 <- subset[ , !(names(subset) %in% drops)]
   
+  channelOfInterest <<- str_to_title(channelOfInterest) #Making global variable
+  
   return(data2)
 }
 ```
@@ -56,41 +60,146 @@ channel_data <- data_subsetter("lifestyle")
 head(channel_data)
 ```
 
+```{r}
+#split data
+set.seed(558) #setting seed for reproducibility 
+
+trainIndex <- createDataPartition(channel_data$shares, p = 0.7, 
+                                  list = FALSE)
+#Creating indexes for training data 
+
+channelTrain <- channel_data[trainIndex, ] #Creating training dataset
+channelTest <- channel_data[-trainIndex, ] #Creating testing dataset
+```
+
+
 
 ## Some Summaries
 
 ```{r 3}
 # summary stats for shares
-summary_stats <- summary(channel_data$shares)
+summary_stats <- summary(channelTrain$shares)
 summary_stats
 
 # contingency table for number of videos per url
-videos_table <- table(channel_data$num_videos)
+videos_table <- table(channelTrain$num_videos)
 videos_table
 
 # ggplot of number of words in the content vs shares
-ggplot(channel_data, aes(x = n_tokens_content, y = shares)) +
+ggplot(channelTrain, aes(x = n_tokens_content, y = shares)) +
 geom_point() +
 labs(x = "Number of words in the content", y = "Number of Shares") +
 ggtitle("Shares vs. Number of words in the content")
 
 # ggplot of positive word rate vs shares
-ggplot(channel_data, aes(x = rate_positive_words, y = shares)) +
+ggplot(channelTrain, aes(x = rate_positive_words, y = shares)) +
 geom_point() +
 labs(x = "Positive Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Positive Word Rate")
 
 # ggplot of negative word rate vs shares
-ggplot(channel_data, aes(x = rate_negative_words, y = shares)) +
+ggplot(channelTrain, aes(x = rate_negative_words, y = shares)) +
 geom_point() +
 labs(x = "Negative Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Negative Word Rate")
 ```
 
 
+# Summaries from Simon
+
+```{r}
+sunday_data <- channelTrain %>% filter(weekday_is_sunday == 1) %>% 
+  transmute(day="Sunday", shares=shares)
+
+monday_data <- channelTrain %>% filter(weekday_is_monday == 1) %>% 
+  transmute(day="Monday", shares=shares)
+
+tuesday_data <- channelTrain %>% filter(weekday_is_tuesday == 1) %>% 
+  transmute(day="Tuesday", shares=shares)
+
+wednesday_data <- channelTrain %>% filter(weekday_is_wednesday == 1) %>% 
+  transmute(day="Wednesday", shares=shares)
+
+thursday_data <- channelTrain %>% filter(weekday_is_thursday == 1) %>% 
+  transmute(day="Thursday", shares=shares)
+
+friday_data <- channelTrain %>% filter(weekday_is_friday == 1) %>% 
+  transmute(day="Friday", shares=shares)
+
+saturday_data <- channelTrain %>% filter(weekday_is_saturday == 1) %>% 
+  transmute(day="Saturday", shares=shares)
+
+weekly_share_data <- rbind(sunday_data, monday_data, tuesday_data, 
+                           wednesday_data, thursday_data, friday_data, 
+                           saturday_data)
+
+```
 
 
+```{r}
+weekly_share_data %>% group_by(day) %>% summarise(Min = min(shares),
+                                              firstQuartile = quantile(shares, 
+                                                                       0.25),
+                                              Avg=mean(shares),
+                                              Med=median(shares),
+                                              thirdQuartile = quantile(shares, 
+                                                                       0.75),
+                                              max = max(shares),
+                                              stdDev = sd(shares)) %>%
+  arrange(match(day, c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", 
+                       "Friday", "Saturday")))
+```
 
+```{r}
+weekly_share_summaries <- weekly_share_data %>% group_by(day) %>% 
+  summarise(avgShares = mean(shares))
+
+weekly_share_summaries$day <- factor(weekly_share_summaries$day, 
+                                     levels=c("Sunday", "Monday", "Tuesday", 
+                                              "Wednesday", "Thursday", "Friday", 
+                                              "Saturday"))
+
+
+newplot <- ggplot(weekly_share_summaries, aes(x=day, y=avgShares, fill=day)) 
+#Creating the base of the plot
+#geom_col is used for the bar graph output
+newplot + geom_bar(stat = "identity") + labs(x = "Day of Week", 
+                          y = "Average Amount of Shares by Publish Day",
+       title = paste0("Bar Chart of Average Amount of Shares by Publish Day for 
+    the ",channelOfInterest, " Channel")) +
+  #Adding descriptive labels
+  theme(plot.title = element_text(hjust = 0.5)) +
+  #Centering the title
+  scale_fill_discrete(name = "Day of Week")
+  #Renaming the legend for clarity
+```
+
+```{r}
+avg_shares <- mean(channelTrain$shares)
+
+channelTrain <- channelTrain %>% 
+  mutate(share_indicator = case_when((shares >= avg_shares) ~ "High Shares",
+                           (shares < avg_shares) ~ "Low Shares"),
+         subjective_indicator = case_when(global_subjectivity >= 0.5 ~ 
+                                            "More Subjective",
+                           (global_subjectivity < 0.5) ~ "More Objective"))
+
+table(channelTrain$share_indicator, channelTrain$subjective_indicator)
+```
+
+```{r}
+channelTrain <- channelTrain %>% 
+  mutate(image_indicator = case_when(num_imgs == 0 ~ "No Pictures",
+                           num_imgs == 1 ~ "One Picture",
+                           num_imgs > 1 ~ "Two or More Pictures",))
+
+
+table(channelTrain$share_indicator, channelTrain$image_indicator)
+```
+
+```{r}
+
+```
 
 
 
