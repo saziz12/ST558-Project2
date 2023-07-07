@@ -15,27 +15,50 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Loading Libraries
 Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
-```{r 1, message=FALSE}
-library(readr)
-library(dplyr)
+```{r libraries, message=FALSE, warning=FALSE}
+library(tidyverse)
 library(ggplot2)
-library(tidyr)
-
 ```
 
 ## Reading in Dataset
 Now, we will read in our data set.
-```{r 2}
+```{r data import}
 # read in the data
-data <- read_csv("../OnlineNewsPopularity.csv", show_col_types=FALSE)
+data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
 head(data)
+```
 
+```{r}
+#Function to automate data filtration
+data_subsetter <- function(channelOfInterest) {
+  
+  if(!(channelOfInterest %in% c("lifestyle", "entertainment", "bus", "socmed", 
+                                "tech", "world"))){
+    stop("Error: The channel must be lifestyle, entertainment, bus, socmed, 
+         tech, or world")
+  }
+  
+  subset <- data %>% filter(eval(parse(text=paste0("data_channel_is_", 
+                                                channelOfInterest))) == 1)
+    
+  thinner <- subset[, c(14:19)]
+  thinner <- thinner[, colSums(thinner != 0) == 0]
+  drops <- names(thinner)
+  data2 <- subset[ , !(names(subset) %in% drops)]
+  
+  return(data2)
+}
+```
+
+```{r}
 # subset for channel
-channel_data <- data %>% filter(data_channel_is_lifestyle == 1)
+channel_data <- data_subsetter("lifestyle")
 head(channel_data)
 ```
 
+
 ## Some Summaries
+
 ```{r 3}
 # summary stats for shares
 summary_stats <- summary(channel_data$shares)
