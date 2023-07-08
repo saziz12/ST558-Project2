@@ -17,20 +17,23 @@ knitr::opts_chunk$set(echo = TRUE)
 Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
 ```{r Libraries, message=FALSE, warning=FALSE}
 library(tidyverse)
-library(ggplot2)
+library(ggplot2) # for creating ggplots
 library(stringr) # for str_to_title()
-library(caret)
+library(caret) # for model training and evaluation
 library(gbm) #Needed this library to run the training function for boosted tree
 ```
 
 ## Reading in Dataset
 
-Now, we will read in our data set.
+Now, we will read in our data set.  
+
 ```{r Data Import}
 # read in the data
 data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
 head(data)
 ```
+
+Next, we will subset our data set into one with the desired channel of interest.  
 
 ```{r Subset Function}
 #This function was written to assist in automating data filtering
@@ -73,6 +76,9 @@ channel_data <- data_subsetter("lifestyle") #subsetting for lifestyle channel
 head(channel_data) #inspecting subsetted data
 ```
 
+Now that we've subset our data set. We will now split it into train and test 
+sets for summary and analysis purposes.  
+
 ```{r Train/Test Split, warning=FALSE}
 set.seed(558) #setting seed for reproducibility 
 
@@ -89,42 +95,58 @@ channelTrain_summary <- channelTrain
 #having to add them to the test set
 ```
 
-
-
 ## Some Summaries
+After splitting our data into train and test sets, we will now create some 
+summary statistics and analysis plots on our train set.  
 
-```{r Sandra's Summaries}
+```{r Sandra Summaries}
 # summary stats for shares
 summary_stats <- summary(channelTrain_summary$shares)
 summary_stats
+```
 
-# contingency table for number of videos per url
+The statistics above explore the spread of the `shares` variable. If the mean is 
+less than the median, the data is skewed to the left. If the median is less than 
+the mean, then the data is skewed to the right.  
+
+```{r summaries 2}
+# contingency table for number of videos
 videos_table <- table(channelTrain_summary$num_videos)
 videos_table
+```
 
-# ggplot of number of words in the content vs shares
+The contingency table above shows the frequency of the number of videos in each 
+observation of our data.  
+
+```{r summaries 3}
 ggplot(channelTrain_summary, aes(x = n_tokens_content, y = shares)) +
 geom_point() +
 labs(x = "Number of words in the content", y = "Number of Shares") +
 ggtitle("Shares vs. Number of words in the content")
+# Creating ggplot of number of words in the content vs shares
 
-# ggplot of positive word rate vs shares
 ggplot(channelTrain_summary, aes(x = rate_positive_words, y = shares)) +
 geom_point() +
 labs(x = "Positive Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Positive Word Rate")
+# Creating ggplot of positive word rate vs shares
 
-# ggplot of negative word rate vs shares
 ggplot(channelTrain_summary, aes(x = rate_negative_words, y = shares)) +
 geom_point() +
 labs(x = "Negative Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Negative Word Rate")
+# Creating ggplot of negative word rate vs shares
+
 ```
 
+Above are three scatter plots that explore the relationship between the number 
+of shares and the number of words in the content, the positive word rate, and 
+negative word rate, respectively.  
 
 # Simon Weisenhorn's Summaries
 
 ```{r Numerical Summaries by Day}
+
 sunday_data <- channelTrain_summary %>% filter(weekday_is_sunday == 1) %>% 
   transmute(day="Sunday", shares=shares)
 #Creating new dataset of shares for when the day is Sunday
@@ -414,11 +436,30 @@ channelTrain_summary %>% group_by(num_keywords) %>% summarise(Min = min(shares),
 We can inspect the numerical summaries of shares split by the number of keywords 
 in the metadata for the article. These summaries provide an indication of how 
 the amount of shares shift as the number of keywords in the metadata for the 
-article changes.
+article changes.  
 
-# Simon's Linear Regression Model
+## Modeling
+Now that we've explored some summaries and statistics using our data, we will 
+now fit some models using our train set then test them using the test set.  
+We will first fit two linear regression models. Linear regression is a statistical 
+modeling technique that is used to establish a relationship between a dependent 
+variable (in our case, the number of shares) and one or more independent 
+(predictor) variables. It assumes a linear relationship between the variables, 
+where the dependent variable can be predicted as a linear combination of the 
+independent variables. It estimates the coefficients that represent the change 
+in the response variable for each unit change in the predictor variables, 
+assuming all other variables are held constant. The goal is to estimate the 
+coefficients that minimize the difference between the predicted values and the 
+actual values of the dependent variable.  
+Our first linear regression model will explore a linear fit with interaction 
+terms. This model is used to test whether the relationship between the dependent 
+and the independent variable changes depending on the value of another 
+independent variable.  
+Our second linear regression model will explore a linear fit without interaction 
+terms. This model assumes that the effect of each predictor on the dependent 
+variable is independent of other predictors in the model.  
 
-```{r Simon's Linear Fit, warning=FALSE, message=FALSE}
+```{r First Linear Fit, warning=FALSE, message=FALSE}
 simon_share_lmfit <- train(shares ~ .^2, data = channelTrain,
                            method = "lm",
                            preProcess = c("center", "scale"),
@@ -426,18 +467,31 @@ simon_share_lmfit <- train(shares ~ .^2, data = channelTrain,
 #Fitting linear model with all interactions
 
 summary(simon_share_lmfit)
-```
 
-```{r}
 pred <- predict(simon_share_lmfit, newdata = channelTest)
-postResample(pred, obs = channelTest$shares)
+l1 <- postResample(pred, obs = channelTest$shares)
+l1
 ```
 
+```{r Second Linear Fit, warning=FALSE, message=FALSE}
+sandra_share_lmfit <- train(shares ~ ., data = channelTrain,
+                           method = "lm",
+                           preProcess = c("center", "scale"),
+                           trControl = trainControl(method = "cv", number = 5))
+#Fitting linear model 
 
-# Simon's Boosted Tree Model
+summary(sandra_share_lmfit)
 
-```{r message=FALSE, warning=FALSE}
+pred <- predict(simon_share_lmfit, newdata = channelTest)
+l2 <- postResample(pred, obs = channelTest$shares)
+l2
+```
 
+The next model we will explore is a boosted tree model.  
+
+
+
+```{r Boosted Tree, message=FALSE, warning=FALSE}
 allTuningParameters <- expand.grid(n.trees=c(25,50,100,150,200), 
                                    interaction.depth=c(1,2,3,4), 
                                    shrinkage=0.1, n.minobsinnode = 10)
@@ -454,9 +508,53 @@ boostTreeFit <- train(shares ~ ., data = channelTrain,
 
 boostTreeFit
 #viewing the resulting model
+
+pred <- predict(boostTreeFit, newdata = channelTest)
+bt <- postResample(pred, obs = channelTest$shares)
+bt
 ```
 
-```{r}
-pred <- predict(boostTreeFit, newdata = channelTest)
-postResample(pred, obs = channelTest$shares)
+The last model we will explore is a random forest model. It is an ensemble 
+tree-based model that trains a collection of decision trees using bootstrap 
+aggregating (bagging) and feature randomness. It combines the predictions of 
+multiple decision trees to make predictions based on the majority vote or 
+averaging of the individual trees.  
+
+```{r Random Forests, message=FALSE, warning=FALSE}
+randomForestFit <- train(shares ~ ., data = channelTrain,
+                      method = "rf",
+                      trControl = trainControl(method = "repeatedcv", 
+                                               number = 5, repeats = 3),
+                      tuneGrid = expand.grid(mtry = 1:15))
+# Fitting the random forests model
+
+randomForestsFit
+# Viewing the resulting model
+
+pred <- predict(randomForestsFit, newdata = channelTest)
+rf <- postResample(pred, obs = channelTest$shares)
+rf
 ```
+
+
+## Comparison
+Now that we've fit and tested the above four models using our train and test 
+sets. We will now compare all four models to pick the best one overall.  
+
+```{r Comparison}
+modelList <- list(firstLinearModel = l1[[1]], secondLinearModel = l2[[1]], 
+                  boostedTree = bt[[1]], randomForests = rf[[1]])
+# Storing all RMSE in one list
+
+bestModel <- names(modelList)[which.min(modelList)]
+# Finding model with lowest RMSE
+
+bestModel
+# Printing model with lowest RMSE
+```
+
+The model printed above has the lowest RMSE and, thus, is the best model to 
+use for predicted new values.  
+
+
+
