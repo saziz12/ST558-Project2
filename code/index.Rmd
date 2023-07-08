@@ -20,9 +20,11 @@ library(tidyverse)
 library(ggplot2)
 library(stringr) # for str_to_title()
 library(caret)
+library(gbm) #Needed this library to run the training function for boosted tree
 ```
 
 ## Reading in Dataset
+
 Now, we will read in our data set.
 ```{r Data Import}
 # read in the data
@@ -52,6 +54,8 @@ data_subsetter <- function(channelOfInterest) {
   thinner <- thinner[, colSums(thinner != 0) == 0] 
   #Extracting the columns that were not selected by the user input
   drops <- names(thinner) #Selecting the names of irrelevant data channels
+  drops <- c(drops, "url") 
+  #adding the url column to be removed because it is non-predictive
   data2 <- subset[ , !(names(subset) %in% drops)]
   #removing irrelevant data channels from dataset
   
@@ -69,7 +73,7 @@ channel_data <- data_subsetter("lifestyle") #subsetting for lifestyle channel
 head(channel_data) #inspecting subsetted data
 ```
 
-```{r Train/Test Split}
+```{r Train/Test Split, warning=FALSE}
 set.seed(558) #setting seed for reproducibility 
 
 trainIndex <- createDataPartition(channel_data$shares, p = 0.7, 
@@ -83,6 +87,10 @@ channelTrain_summary <- channelTrain
 #Creating copy of training data so that summaries can be performed on it below
 #This is so that summary variables can be added to the training data without 
 #having to add them to the test set
+
+preProcValues <- preProcess(channelTrain, method = c("center", "scale"))
+trainTransformed <- predict(preProcValues, channelTrain)
+testTransformed <- predict(preProcValues, channelTest)
 ```
 
 
@@ -168,6 +176,10 @@ weekly_share_data %>% group_by(day) %>% summarise(Min = min(shares),
 #Creating numerical summary of the amount of shares by day of the week
 ```
 
+We can inspect the numerical summaries of shares split by the day the article 
+was posted. These summaries provide an indication of how the amount of shares
+shift as the day of the week changes.
+
 ```{r Bar Chart by Day}
 weekly_share_summaries <- weekly_share_data %>% group_by(day) %>% 
   summarise(Average = mean(shares), Median = median(shares))
@@ -200,6 +212,14 @@ plot4 + geom_bar(stat = "identity", position = "dodge") +
   scale_fill_discrete(name = "Measure of Center")
   #Renaming the legend for clarity
 ```
+
+We can inspect the measures of the center for the amount of shares by each day 
+an article was posted. If the mean (in red) is taller than the median (in blue)
+then the amount of shares is skewed right for that particular day. On the other
+hand, if the median (in blue) is taller than the mean (in red) then the amount 
+of shares is skewed left for that particular day. Finally, if the mean and 
+median are similar heights then the amount of shares are symmetrically 
+distributed.
 
 ```{r Histogram of Shares by Part of Week, warning=FALSE}
 weekend_data <- channelTrain_summary %>% filter(is_weekend == 1) %>% 
@@ -241,6 +261,15 @@ plot5 + geom_histogram(data=subset(new_weekly_share_data, day == 'Weekday'),
   #Renaming the legend for clarity
 ```
 
+We can inspect the distributions of the amount of shares based on whether the 
+article was posted on a weekday or a weekend. If the distributions are shaped
+similarly, then we would have no indication that the distribution of the amount
+of shares changes for whether the article was posted on a weekday or a weekend.
+However, if one of the distributions are shaped differently than the other, 
+such as skewed a certain direction or multi-modal, then we would have reason to
+believe that the distribution of the amount of shares changes for whether the 
+article was posted on a weekday or a weekend.
+
 ```{r Contingency Table of Subjectivity}
 med_shares <- median(channelTrain_summary$shares)
 #Storing the median amount of shares for a cutoff value
@@ -261,6 +290,16 @@ table(channelTrain_summary$share_indicator,
 #Creating contingency table for sharing indicator with subjective indicator
 ```
 
+We can inspect the distributions of the sharing indicator with the subjective
+indicator. An article with a high sharing rate is one that has the same amount 
+of shares or more than the median amount of shares for all articles in the 
+dataset, whereas an article with a low sharing rate is one that has less than 
+the median amount of shares for all articles in the dataset. Additionally,
+an article is considered more objective if the text subjectivity is less than 
+.5, whereas an article is considered more subjective if the text subjectivity
+is greater than or equal to .5. Thus, these groups provide insight into 
+how sharing is affected when the text subjectivity is changed on a binary scale.
+
 ```{r Contingency Table of Images}
 channelTrain_summary <- channelTrain_summary %>% 
   mutate(image_indicator = case_when(num_imgs == 0 ~ "No Pictures",
@@ -273,6 +312,41 @@ table(channelTrain_summary$share_indicator,
       channelTrain_summary$image_indicator)
 #Creating contingency table for sharing indicator with image indicator
 ```
+
+We can inspect the distributions of the sharing indicator with the image
+indicator. An article with a high sharing rate is one that has the same amount 
+of shares or more than the median amount of shares for all articles in the 
+dataset, whereas an article with a low sharing rate is one that has less than 
+the median amount of shares for all articles in the dataset. Additionally,
+if the article has no pictures then it is labeled no pictures, or if the article
+has a singular picture then it is labeled one picture, or if the article has more
+than one picture then it is labeled two or more pictures Thus, these groups 
+provide insight into how sharing is affected when the amount of pictures are 
+changed on a categorical scale.
+
+```{r Contingency Table of Videos}
+channelTrain_summary <- channelTrain_summary %>% 
+  mutate(video_indicator = case_when(num_videos == 0 ~ "No Videos",
+                           num_videos == 1 ~ "One Video",
+                           num_videos > 1 ~ "Two or More Videos",))
+#Creating a new variable for indicating when the number of videos in the article
+#is zero, 1, or more than 1.
+
+table(channelTrain_summary$share_indicator, 
+      channelTrain_summary$video_indicator)
+#Creating contingency table for sharing indicator with video indicator
+```
+
+We can inspect the distributions of the sharing indicator with the video
+indicator. An article with a high sharing rate is one that has the same amount 
+of shares or more than the median amount of shares for all articles in the 
+dataset, whereas an article with a low sharing rate is one that has less than 
+the median amount of shares for all articles in the dataset. Additionally,
+if the article has no videos then it is labeled no videos, or if the article
+has a singular video then it is labeled one video, or if the article has more
+than one video then it is labeled two or more videos Thus, these groups 
+provide insight into how sharing is affected when the amount of videos are 
+changed on a categorical scale.
 
 ```{r Scatterplot for Links}
 plot6 <- ggplot(channelTrain_summary, aes(x=num_hrefs, y=shares, 
@@ -295,6 +369,16 @@ Mashable") +
   #Centering the title and scaling text to fit properly
 ```
 
+We can inspect the trend of the amount of shares as a function of the number of 
+links in an article. If the data points display an upward trend, then we would
+find an association between a higher amount of shares given a larger number of 
+links in an article. If the data points display a downward trend, then we would 
+find an association between a lower amount of shares given a smaller number of 
+links in an article. Finally, each datapoint has been colored based on the 
+amount of links to other articles published by Mashable. A high amount of 
+links to other articles published by Mashable are indicated with red datapoints
+and a low amount of links to other articles published by Mashable are indicated
+with blue datapoints.
 
 ```{r Scatterplot for Keywords}
 plot7 <- ggplot(channelTrain_summary, aes(x=num_keywords, y=shares)) 
@@ -310,6 +394,12 @@ plot7 + geom_point() +
   #Centering the title
 ```
 
+We can inspect the trend of the amount of shares as a function of the number of 
+keywords in the metadata. If the data points display an upward trend, then we 
+would find an association between a higher amount of shares given a larger 
+number of keywords in the metadata for an article. If the data points display a 
+downward trend, then we would find an association between a lower amount of 
+shares given a smaller number of keywords in the metadata for an article. 
 
 ```{r Numerical Summaries by Keywords}
 channelTrain_summary %>% group_by(num_keywords) %>% summarise(Min = min(shares),
@@ -323,4 +413,56 @@ channelTrain_summary %>% group_by(num_keywords) %>% summarise(Min = min(shares),
                                               stdDev = sd(shares)) 
 #Creating numerical summary of the amount of shares by number of keywords 
 #in the metadata
+```
+
+We can inspect the numerical summaries of shares split by the number of keywords 
+in the metadata for the article. These summaries provide an indication of how 
+the amount of shares shift as the number of keywords in the metadata for the 
+article changes.
+
+# Simon's Linear Regression Model
+
+```{r Simon's Linear Fit, warning=FALSE, message=FALSE}
+simon_share_lmfit <- train(shares ~ .^2, data = trainTransformed,
+method = "lm",
+trControl = trainControl(method = "cv", number = 5))
+#Fitting linear model with all interactions
+
+summary(simon_share_lmfit)
+```
+
+```{r}
+data.frame(t(simon_share_lmfit$results))
+```
+
+```{r}
+data.frame(data = testTransformed$shares, 
+                reference = predict(simon_share_lmfit, newdata = testTransformed))
+```
+
+
+# Simon's Boosted Tree Model
+
+```{r message=FALSE, warning=FALSE}
+
+allTuningParameters <- expand.grid(n.trees=c(25,50,100,150,200), 
+                                   interaction.depth=c(1,2,3,4), 
+                                   shrinkage=0.1, n.minobsinnode = 10)
+#Creating dataframe for the tuneGrid arguement using expand.grid
+
+boostTreeFit <- train(shares ~ ., data = trainTransformed,
+                      method = "gbm",
+                      trControl = trainControl(method = "repeatedcv", 
+                                               number = 5, repeats=3),
+                      tuneGrid=allTuningParameters,
+                      verbose=FALSE)
+#Fitting the boosted tree model
+
+boostTreeFit
+#viewing the resulting model
+```
+
+```{r}
+data.frame(data = testTransformed$shares, 
+                reference = predict(boostTreeFit, newdata = testTransformed))
 ```
