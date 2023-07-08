@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Loading Libraries
 Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
-```{r libraries, message=FALSE, warning=FALSE}
+```{r Libraries, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(ggplot2)
 library(stringr) # for str_to_title()
@@ -24,14 +24,15 @@ library(caret)
 
 ## Reading in Dataset
 Now, we will read in our data set.
-```{r data import}
+```{r Data Import}
 # read in the data
 data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
 head(data)
 ```
 
-```{r}
-#Function to automate data filtration
+```{r Subset Function}
+#This function was written to assist in automating data filtering
+
 data_subsetter <- function(channelOfInterest) {
   
   if(!(channelOfInterest %in% c("lifestyle", "entertainment", "bus", "socmed", 
@@ -39,29 +40,36 @@ data_subsetter <- function(channelOfInterest) {
     stop("Error: The channel must be lifestyle, entertainment, bus, socmed, 
          tech, or world")
   }
+  #This conditional statement ensures that the user passed one of the possible
+  #six data channels, otherwise the function is stopped and an error message is
+  #presented
   
   subset <- data %>% filter(eval(parse(text=paste0("data_channel_is_", 
                                                 channelOfInterest))) == 1)
+  #Subsetting the data to filter the rows based on the given data channel
     
-  thinner <- subset[, c(14:19)]
-  thinner <- thinner[, colSums(thinner != 0) == 0]
-  drops <- names(thinner)
+  thinner <- subset[, c(14:19)] #Selecting the 6 data channel columns
+  thinner <- thinner[, colSums(thinner != 0) == 0] 
+  #Extracting the columns that were not selected by the user input
+  drops <- names(thinner) #Selecting the names of irrelevant data channels
   data2 <- subset[ , !(names(subset) %in% drops)]
+  #removing irrelevant data channels from dataset
   
-  channelOfInterest <<- str_to_title(channelOfInterest) #Making global variable
+  channelOfInterest <<- str_to_title(channelOfInterest) 
+  #Making global variable out of user supplied channel for later uses
   
-  return(data2)
+  return(data2) 
+  #Returning dataset with filtered rows based on the selected channel and 
+  #removing the other channels that the user did not supply
 }
 ```
 
-```{r}
-# subset for channel
-channel_data <- data_subsetter("lifestyle")
-head(channel_data)
+```{r Subset of Data}
+channel_data <- data_subsetter("lifestyle") #subsetting for lifestyle channel
+head(channel_data) #inspecting subsetted data
 ```
 
-```{r}
-#split data
+```{r Train/Test Split}
 set.seed(558) #setting seed for reproducibility 
 
 trainIndex <- createDataPartition(channel_data$shares, p = 0.7, 
@@ -70,73 +78,82 @@ trainIndex <- createDataPartition(channel_data$shares, p = 0.7,
 
 channelTrain <- channel_data[trainIndex, ] #Creating training dataset
 channelTest <- channel_data[-trainIndex, ] #Creating testing dataset
+
+channelTrain_summary <- channelTrain 
+#Creating copy of training data so that summaries can be performed on it below
+#This is so that summary variables can be added to the training data without 
+#having to add them to the test set
 ```
 
 
 
 ## Some Summaries
 
-```{r 3}
+```{r Sandra's Summaries}
 # summary stats for shares
-summary_stats <- summary(channelTrain$shares)
+summary_stats <- summary(channelTrain_summary$shares)
 summary_stats
 
 # contingency table for number of videos per url
-videos_table <- table(channelTrain$num_videos)
+videos_table <- table(channelTrain_summary$num_videos)
 videos_table
 
 # ggplot of number of words in the content vs shares
-ggplot(channelTrain, aes(x = n_tokens_content, y = shares)) +
+ggplot(channelTrain_summary, aes(x = n_tokens_content, y = shares)) +
 geom_point() +
 labs(x = "Number of words in the content", y = "Number of Shares") +
 ggtitle("Shares vs. Number of words in the content")
 
 # ggplot of positive word rate vs shares
-ggplot(channelTrain, aes(x = rate_positive_words, y = shares)) +
+ggplot(channelTrain_summary, aes(x = rate_positive_words, y = shares)) +
 geom_point() +
 labs(x = "Positive Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Positive Word Rate")
 
 # ggplot of negative word rate vs shares
-ggplot(channelTrain, aes(x = rate_negative_words, y = shares)) +
+ggplot(channelTrain_summary, aes(x = rate_negative_words, y = shares)) +
 geom_point() +
 labs(x = "Negative Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Negative Word Rate")
 ```
 
 
-# Summaries from Simon
+# Simon Weisenhorn's Summaries
 
-```{r}
-sunday_data <- channelTrain %>% filter(weekday_is_sunday == 1) %>% 
+```{r Numerical Summaries by Day}
+sunday_data <- channelTrain_summary %>% filter(weekday_is_sunday == 1) %>% 
   transmute(day="Sunday", shares=shares)
+#Creating new dataset of shares for when the day is Sunday
 
-monday_data <- channelTrain %>% filter(weekday_is_monday == 1) %>% 
+monday_data <- channelTrain_summary %>% filter(weekday_is_monday == 1) %>% 
   transmute(day="Monday", shares=shares)
+#Creating new dataset of shares for when the day is Monday
 
-tuesday_data <- channelTrain %>% filter(weekday_is_tuesday == 1) %>% 
+tuesday_data <- channelTrain_summary %>% filter(weekday_is_tuesday == 1) %>% 
   transmute(day="Tuesday", shares=shares)
+#Creating new dataset of shares for when the day is Tuesday
 
-wednesday_data <- channelTrain %>% filter(weekday_is_wednesday == 1) %>% 
+wednesday_data <- channelTrain_summary %>% filter(weekday_is_wednesday == 1) %>% 
   transmute(day="Wednesday", shares=shares)
+#Creating new dataset of shares for when the day is Wednesday
 
-thursday_data <- channelTrain %>% filter(weekday_is_thursday == 1) %>% 
+thursday_data <- channelTrain_summary %>% filter(weekday_is_thursday == 1) %>% 
   transmute(day="Thursday", shares=shares)
+#Creating new dataset of shares for when the day is Thursday
 
-friday_data <- channelTrain %>% filter(weekday_is_friday == 1) %>% 
+friday_data <- channelTrain_summary %>% filter(weekday_is_friday == 1) %>% 
   transmute(day="Friday", shares=shares)
+#Creating new dataset of shares for when the day is Friday
 
-saturday_data <- channelTrain %>% filter(weekday_is_saturday == 1) %>% 
+saturday_data <- channelTrain_summary %>% filter(weekday_is_saturday == 1) %>% 
   transmute(day="Saturday", shares=shares)
+#Creating new dataset of shares for when the day is Saturday
 
 weekly_share_data <- rbind(sunday_data, monday_data, tuesday_data, 
                            wednesday_data, thursday_data, friday_data, 
                            saturday_data)
+#Stacking the rows of the seven previous datasets together with rbind
 
-```
-
-
-```{r}
 weekly_share_data %>% group_by(day) %>% summarise(Min = min(shares),
                                               firstQuartile = quantile(shares, 
                                                                        0.25),
@@ -148,58 +165,162 @@ weekly_share_data %>% group_by(day) %>% summarise(Min = min(shares),
                                               stdDev = sd(shares)) %>%
   arrange(match(day, c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", 
                        "Friday", "Saturday")))
+#Creating numerical summary of the amount of shares by day of the week
 ```
 
-```{r}
+```{r Bar Chart by Day}
 weekly_share_summaries <- weekly_share_data %>% group_by(day) %>% 
-  summarise(avgShares = mean(shares))
+  summarise(Average = mean(shares), Median = median(shares))
+#Creating new variables for the average and median amount of shares by day
 
 weekly_share_summaries$day <- factor(weekly_share_summaries$day, 
                                      levels=c("Sunday", "Monday", "Tuesday", 
                                               "Wednesday", "Thursday", "Friday", 
                                               "Saturday"))
+#Reordering the days of the week so that they appear in chronological order in 
+#the subsequent graph
 
+weekly_share_summaries <- weekly_share_summaries %>% 
+  pivot_longer(cols = c(Average, Median),names_to="statistic", 
+               values_to = "value")
+#Converting data from wide to long format so that the fill type can be used 
+#in the graph below
 
-newplot <- ggplot(weekly_share_summaries, aes(x=day, y=avgShares, fill=day)) 
+plot4 <- ggplot(weekly_share_summaries, aes(x=day, y=value, fill=statistic)) 
 #Creating the base of the plot
-#geom_col is used for the bar graph output
-newplot + geom_bar(stat = "identity") + labs(x = "Day of Week", 
-                          y = "Average Amount of Shares by Publish Day",
-       title = paste0("Bar Chart of Average Amount of Shares by Publish Day for 
+
+plot4 + geom_bar(stat = "identity", position = "dodge") + 
+  #utilizing geom_bar to create a side by side bar graph
+  labs(x = "Day of Week", y = "Amount of Shares",
+       title = paste0("Bar Chart for Center of Shares by Publish Day for 
     the ",channelOfInterest, " Channel")) +
   #Adding descriptive labels
   theme(plot.title = element_text(hjust = 0.5)) +
   #Centering the title
-  scale_fill_discrete(name = "Day of Week")
+  scale_fill_discrete(name = "Measure of Center")
   #Renaming the legend for clarity
 ```
 
-```{r}
-avg_shares <- mean(channelTrain$shares)
+```{r Histogram of Shares by Part of Week, warning=FALSE}
+weekend_data <- channelTrain_summary %>% filter(is_weekend == 1) %>% 
+  transmute(day="Weekend", shares=shares)
+#Creating new dataset of shares for when the article was posted on a weekend
 
-channelTrain <- channelTrain %>% 
-  mutate(share_indicator = case_when((shares >= avg_shares) ~ "High Shares",
-                           (shares < avg_shares) ~ "Low Shares"),
+weekday_data <- channelTrain_summary %>% filter(is_weekend == 0) %>% 
+  transmute(day="Weekday", shares=shares)
+#Creating new dataset of shares for when the article was posted on a weekday
+
+new_weekly_share_data <- rbind(weekend_data, weekday_data)
+#Stacking the rows of the seven previous datasets together with rbind
+
+maxxlim <- (quantile(new_weekly_share_data$shares, 0.75) - 
+              quantile(new_weekly_share_data$shares, 0.25)) * 1.5
+#creating the maximum x value by removing any share values that may be
+#considered an outlier so that the histogram is easier to view
+
+plot5 <- ggplot(new_weekly_share_data, aes(x=shares, fill=day)) 
+#Creating the base of the plot
+
+plot5 + geom_histogram(data=subset(new_weekly_share_data, day == 'Weekday'), 
+                       bins=20, alpha = 0.75) +
+  #Adding the first histogram layer for the amount of shares if the article 
+  #was posted on a weekday
+  geom_histogram(data=subset(new_weekly_share_data, day == 'Weekend'), bins=20, 
+                 alpha = 0.75) +
+  #Adding the second histogram layer for the amount of shares if the article 
+  #was posted on a weekend
+  labs(x = "Amount of Shares", y = "Frequency", 
+       title = paste0("Histogram of Amount of Shares for the ",channelOfInterest,
+                      " Channel")) +
+  #Adding descriptive labels
+  xlim(0,maxxlim) +
+  #limiting the x axis to avoid outliers so that the histogram is viewable
+  theme(plot.title = element_text(hjust = 0.5)) +
+  #Centering the title
+  scale_fill_discrete(name = "Part of Week")
+  #Renaming the legend for clarity
+```
+
+```{r Contingency Table of Subjectivity}
+med_shares <- median(channelTrain_summary$shares)
+#Storing the median amount of shares for a cutoff value
+
+channelTrain_summary <- channelTrain_summary %>% 
+  mutate(share_indicator = case_when((shares >= med_shares) ~ "High Shares",
+                           (shares < med_shares) ~ "Low Shares"),
+#Creating a new variable for indicating when shares are higher than 
+#the median amount of all shares for this channel
          subjective_indicator = case_when(global_subjectivity >= 0.5 ~ 
                                             "More Subjective",
                            (global_subjectivity < 0.5) ~ "More Objective"))
+#Creating a new variable for indicating when articles are more than half
+#subjective or less than half subjective
 
-table(channelTrain$share_indicator, channelTrain$subjective_indicator)
+table(channelTrain_summary$share_indicator, 
+      channelTrain_summary$subjective_indicator)
+#Creating contingency table for sharing indicator with subjective indicator
 ```
 
-```{r}
-channelTrain <- channelTrain %>% 
+```{r Contingency Table of Images}
+channelTrain_summary <- channelTrain_summary %>% 
   mutate(image_indicator = case_when(num_imgs == 0 ~ "No Pictures",
                            num_imgs == 1 ~ "One Picture",
                            num_imgs > 1 ~ "Two or More Pictures",))
+#Creating a new variable for indicating when the number of images in the article
+#is zero, 1, or more than 1.
 
-
-table(channelTrain$share_indicator, channelTrain$image_indicator)
+table(channelTrain_summary$share_indicator, 
+      channelTrain_summary$image_indicator)
+#Creating contingency table for sharing indicator with image indicator
 ```
 
-```{r}
+```{r Scatterplot for Links}
+plot6 <- ggplot(channelTrain_summary, aes(x=num_hrefs, y=shares, 
+                                          color=num_self_hrefs)) 
+#Creating the base of the plot
 
+plot6 + geom_point() + 
+  scale_color_gradient(low="blue", high="red", 
+                       name="Number of Links 
+Published by 
+Mashable") +
+  #Here I am adding to the plot to create a scatterplot where the points 
+  #are colored by amount of links to other articles published by Mashable
+  labs(x = "Number of Links in Article", y = "Amount of Shares",
+       title = paste0("Amount of Shares vs Number of Links in an Article for the "
+                      ,channelOfInterest," Channel")) +
+  #Adding descriptive labels
+  theme(plot.title = element_text(hjust = 0.5), title= element_text(size=10), 
+        legend.title=element_text(size=10)) 
+  #Centering the title and scaling text to fit properly
 ```
 
 
+```{r Scatterplot for Keywords}
+plot7 <- ggplot(channelTrain_summary, aes(x=num_keywords, y=shares)) 
+#Creating the base of the plot
 
+plot7 + geom_point() +
+  #Here I am adding to the plot to create a scatterplot 
+  labs(x = "Number of Keywords in the Metadata", y="Amount of Shares",
+       title = paste0("Amount of Shares vs Number of Keywords in the Metadata of 
+  an Article for the ",channelOfInterest," Channel")) +
+  #Adding descriptive labels
+  theme(plot.title = element_text(hjust = 0.5)) 
+  #Centering the title
+```
+
+
+```{r Numerical Summaries by Keywords}
+channelTrain_summary %>% group_by(num_keywords) %>% summarise(Min = min(shares),
+                                              firstQuartile = quantile(shares, 
+                                                                       0.25),
+                                              Avg=mean(shares),
+                                              Med=median(shares),
+                                              thirdQuartile = quantile(shares, 
+                                                                       0.75),
+                                              max = max(shares),
+                                              stdDev = sd(shares)) 
+#Creating numerical summary of the amount of shares by number of keywords 
+#in the metadata
+```
