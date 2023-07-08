@@ -10,8 +10,35 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-
-
+This project focuses around an online news popularity dataset provided by the
+UC Irvine Machine Learning Repository. The dataset consists of 61 total
+variables where 58 are considered predictive, 2 are non-predictive, and 1 is the
+targeted response. Since 2 of the variables are non-predictive and not of
+interest to our summaries, they will be removed when bringing in the data. The
+remaining predictor variables consist of information regarding aspects
+of online news articles. These aspects include things ranging from the rate
+of positive words, the level of subjectivity, the amount of images, and
+the number of keywords in the metadata to name just a few of the many variables
+that we are interested in exploring their relationship with the target response
+variable, which is the number of shares each news article received.
+Additionally, there are a six total data channels that break up the dataset
+based on which data channel the news article falls under. Each report will be
+based on a singular data channel to amass six total reports.  
+ 
+The purpose of this analysis is to first gain a better understanding of how
+the relationships between the number of shares change as different predictor
+variables change. This exploration will occur in the summarizations section
+below and will be investigated on the training dataset after splitting the
+full dataset into a 70/30 split of training data and testing data. Following
+this investigation, we will enter the methods section, which aims to model the
+response through a few different kinds of models. Each model will model the
+shares variable as the response and utilize all of the variables labeled
+"predictive" as the predictors. The models will also preprocess the training
+data and use cross-validation to select the best version of itself. After all
+of the models have been created, they will be compared and selected based on
+the smallest RMSE value. The purpose of creating multiple models is to ensure
+we are picking a model that predicts the testing data the best so that our
+predictions are more accurate.
 
 ## Loading Libraries
 Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
