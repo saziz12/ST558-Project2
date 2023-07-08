@@ -87,10 +87,6 @@ channelTrain_summary <- channelTrain
 #Creating copy of training data so that summaries can be performed on it below
 #This is so that summary variables can be added to the training data without 
 #having to add them to the test set
-
-preProcValues <- preProcess(channelTrain, method = c("center", "scale"))
-trainTransformed <- predict(preProcValues, channelTrain)
-testTransformed <- predict(preProcValues, channelTest)
 ```
 
 
@@ -423,21 +419,18 @@ article changes.
 # Simon's Linear Regression Model
 
 ```{r Simon's Linear Fit, warning=FALSE, message=FALSE}
-simon_share_lmfit <- train(shares ~ .^2, data = trainTransformed,
-method = "lm",
-trControl = trainControl(method = "cv", number = 5))
+simon_share_lmfit <- train(shares ~ .^2, data = channelTrain,
+                           method = "lm",
+                           preProcess = c("center", "scale"),
+                           trControl = trainControl(method = "cv", number = 5))
 #Fitting linear model with all interactions
 
 summary(simon_share_lmfit)
 ```
 
 ```{r}
-data.frame(t(simon_share_lmfit$results))
-```
-
-```{r}
-data.frame(data = testTransformed$shares, 
-                reference = predict(simon_share_lmfit, newdata = testTransformed))
+pred <- predict(simon_share_lmfit, newdata = channelTest)
+postResample(pred, obs = channelTest$shares)
 ```
 
 
@@ -450,8 +443,9 @@ allTuningParameters <- expand.grid(n.trees=c(25,50,100,150,200),
                                    shrinkage=0.1, n.minobsinnode = 10)
 #Creating dataframe for the tuneGrid arguement using expand.grid
 
-boostTreeFit <- train(shares ~ ., data = trainTransformed,
+boostTreeFit <- train(shares ~ ., data = channelTrain,
                       method = "gbm",
+                      preProcess = c("center", "scale"),
                       trControl = trainControl(method = "repeatedcv", 
                                                number = 5, repeats=3),
                       tuneGrid=allTuningParameters,
@@ -463,6 +457,6 @@ boostTreeFit
 ```
 
 ```{r}
-data.frame(data = testTransformed$shares, 
-                reference = predict(boostTreeFit, newdata = testTransformed))
+pred <- predict(boostTreeFit, newdata = channelTest)
+postResample(pred, obs = channelTest$shares)
 ```
