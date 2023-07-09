@@ -85,6 +85,7 @@ for(i in 1:length(strings)){
   }
 }
 channel_names <- channel_names[!is.na(channel_names)] #removing NA values
+
 output_file <- paste0(channel_names, ".html") 
 #adding .html to end of channel names
 params <- lapply(channel_names, FUN = function(x){list(channel = x)})
@@ -133,7 +134,7 @@ data_subsetter <- function(channelOfInterest) {
 ```
 
 ```{r Subset of Data}
-channel_data <- data_subsetter(params$channel) #subsetting for given channel
+channel_data <- data_subsetter(params[[1]][1]) #subsetting for given channel
 head(channel_data) #inspecting subsetted data
 ```
 
@@ -200,7 +201,6 @@ geom_point() +
 labs(x = "Negative Word Rate", y = "Number of Shares") +
 ggtitle("Shares vs. Negative Word Rate")
 # Creating ggplot of negative word rate vs shares
-
 ```
 
 Above are three scatter plots that explore the relationship between the number 
