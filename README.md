@@ -37,7 +37,7 @@ A link to each report can be found below.
 
 `data <- read_csv("data/OnlineNewsPopularity.csv", show_col_types=FALSE)`  
 
-`channel_vars <- data %>% select(starts_with("data_channel_is_")) %>%   
+`channel_vars <- data %>% select(starts_with("data_channel_is_")) %>%
   pivot_longer(cols=everything(), names_to = "Channels")`  
 
 `strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))`  
