@@ -54,8 +54,8 @@ A link to each report can be found below.
 `for(i in 1:length(channel_names))`{  
   `params<<-list(data_channel=channel_names[i])`  
   `rmarkdown::render(input = "index.Rmd", output_file = channel_names[i],  
-                    params=params,  
-                    output_format = "github_document",  
-                    output_options = list(html_preview=FALSE))`  
+                    params=params,<br>
+                    output_format = "github_document",<br>  
+                    output_options = list(html_preview=FALSE))`<br>  
 }  
   
