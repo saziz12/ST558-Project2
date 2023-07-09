@@ -41,13 +41,17 @@ we are picking a model that predicts the testing data the best so that our
 predictions are more accurate.
 
 ## Loading Libraries
-Before we load our data or do any analysis, we will first load the libraries needed throughout the project:
+
+Before we load our data or do any analysis, we will first load the libraries 
+needed throughout the project:
+
 ```{r Libraries, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(ggplot2) # for creating ggplots
 library(stringr) # for str_to_title()
 library(caret) # for model training and evaluation
 library(gbm) #Needed this library to run the training function for boosted tree
+library(rmarkdown)
 ```
 
 ## Reading in Dataset
@@ -55,15 +59,45 @@ library(gbm) #Needed this library to run the training function for boosted tree
 Now, we will read in our data set.  
 
 ```{r Data Import}
-# read in the data
+# reading in the data
 data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
-head(data)
+head(data) #viewing the first 6 observations of the data
 ```
+
+```{r Channel Name Extraction}
+channel_vars <- data %>% select(starts_with("data_channel_is_")) %>% 
+  pivot_longer(cols=everything(), names_to = "Channels")
+#Selecting all of the variables in the imported data that start with 
+#data_channel_is_ and pivoting the data to long format so that the 
+#channel names can be extracted
+
+strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))
+#Utilizing strsplit to split the data channel names by underscore
+
+channel_names <- c()
+#Creating empty atomic vector for loop below
+
+for(i in 1:length(strings)){
+  if(!(strings[i] %in% c("data", "channel", "is"))){
+    #Checking to see if string is not equal to the uninterested strings above
+    channel_names[i] <- strings[i]
+    #saving the strings of interest in previously created atomic vector
+  }
+}
+channel_names <- channel_names[!is.na(channel_names)] #removing NA values
+output_file <- paste0(channel_names, ".html") 
+#adding .html to end of channel names
+params <- lapply(channel_names, FUN = function(x){list(channel = x)})
+#creating params list for rendering step later on
+reports <- tibble(output_file, params)
+#creating report tibble for the output_file names and params
+```
+
 
 Next, we will subset our data set into one with the desired channel of interest.  
 
 ```{r Subset Function}
-#This function was written to assist in automating data filtering
+#This function was written to assist in data filtering
 
 data_subsetter <- function(channelOfInterest) {
   
@@ -99,7 +133,7 @@ data_subsetter <- function(channelOfInterest) {
 ```
 
 ```{r Subset of Data}
-channel_data <- data_subsetter("lifestyle") #subsetting for lifestyle channel
+channel_data <- data_subsetter(params$channel) #subsetting for given channel
 head(channel_data) #inspecting subsetted data
 ```
 
@@ -122,11 +156,14 @@ channelTrain_summary <- channelTrain
 #having to add them to the test set
 ```
 
-## Some Summaries
+## Summarizations
+
 After splitting our data into train and test sets, we will now create some 
 summary statistics and analysis plots on our train set.  
 
-```{r Sandra Summaries}
+#### The following summarizations were created by Sandra Aziz
+
+```{r summaries 1}
 # summary stats for shares
 summary_stats <- summary(channelTrain_summary$shares)
 summary_stats
@@ -170,7 +207,7 @@ Above are three scatter plots that explore the relationship between the number
 of shares and the number of words in the content, the positive word rate, and 
 negative word rate, respectively.  
 
-# Simon Weisenhorn's Summaries
+#### The following summarizations were created by Simon Weisenhorn
 
 ```{r Numerical Summaries by Day}
 
@@ -469,13 +506,13 @@ article changes.
 
 Now that we've explored some summaries and statistics using our data, we will 
 now fit some models using our train set then test them using the test set.  
-We will first fit two linear regression models. Linear regression is a statistical 
-modeling technique that is used to establish a relationship between a dependent 
-variable (in our case, the number of shares) and one or more independent 
-(predictor) variables. It assumes a linear relationship between the variables, 
-where the dependent variable can be predicted as a linear combination of the 
-independent variables. It estimates the coefficients that represent the change 
-in the response variable for each unit change in the predictor variables, 
+We will first fit two linear regression models. Linear regression is a 
+statistical modeling technique that is used to establish a relationship between 
+a dependent variable (in our case, the number of shares) and one or more 
+independent (predictor) variables. It assumes a linear relationship between the 
+variables, where the dependent variable can be predicted as a linear combination 
+of the independent variables. It estimates the coefficients that represent the 
+change in the response variable for each unit change in the predictor variables, 
 assuming all other variables are held constant. The goal is to estimate the 
 coefficients that minimize the difference between the predicted values and the 
 actual values of the dependent variable.  
@@ -495,10 +532,13 @@ simon_share_lmfit <- train(shares ~ .^2, data = channelTrain,
 #Fitting linear model with all interactions
 
 summary(simon_share_lmfit)
+#viewing the resulting model
 
 pred <- predict(simon_share_lmfit, newdata = channelTest)
+#Creating predictions based on the channelTest data
 l1 <- postResample(pred, obs = channelTest$shares)
-l1
+#creating first linear model postResample results object
+l1 #viewing how well the first linear model did 
 ```
 
 ```{r Second Linear Fit, warning=FALSE, message=FALSE}
@@ -506,13 +546,16 @@ sandra_share_lmfit <- train(shares ~ ., data = channelTrain,
                            method = "lm",
                            preProcess = c("center", "scale"),
                            trControl = trainControl(method = "cv", number = 5))
-#Fitting linear model 
+#Fitting linear model with no interactions
 
 summary(sandra_share_lmfit)
+#viewing the resulting model
 
 pred <- predict(simon_share_lmfit, newdata = channelTest)
+#Creating predictions based on the channelTest data
 l2 <- postResample(pred, obs = channelTest$shares)
-l2
+#creating second linear model postResample results object
+l2 #viewing how well the second linear model did 
 ```
 
 The next model we will explore is a boosted tree model. A boosted tree is 
@@ -541,8 +584,10 @@ boostTreeFit
 #viewing the resulting model
 
 pred <- predict(boostTreeFit, newdata = channelTest)
+#Creating predictions based on the channelTest data
 bt <- postResample(pred, obs = channelTest$shares)
-bt
+#creating boosted tree postResample results object
+bt #viewing how well the boosted tree did 
 ```
 
 The last model we will explore is a random forest model. It is an ensemble 
@@ -556,17 +601,18 @@ randomForestFit <- train(shares ~ ., data = channelTrain,
                       method = "rf",
                       trControl = trainControl(method = "repeatedcv", 
                                                number = 5, repeats = 3),
-                      tuneGrid = expand.grid(mtry = 1:15))
+                      tuneGrid = data.frame(mtry = 1:15))
 # Fitting the random forests model
 
 randomForestFit
 # Viewing the resulting model
 
 pred <- predict(randomForestFit, newdata = channelTest)
+#Creating predictions based on the channelTest data
 rf <- postResample(pred, obs = channelTest$shares)
-rf
+#creating random forest postResample results object
+rf #viewing how well the random forest did
 ```
-
 
 ## Comparison
 
@@ -587,6 +633,3 @@ paste("The best model with the lowest RMSE was", bestModel, sep=" ")
 
 The model printed above has the lowest RMSE and, thus, is the best model to 
 use for predicted new values.  
-
-
-
