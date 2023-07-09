@@ -46,12 +46,11 @@ Before we load our data or do any analysis, we will first load the libraries
 needed throughout the project:
 
 ```{r Libraries, message=FALSE, warning=FALSE}
-library(tidyverse)
+library(tidyverse) #for cleaning the data
 library(ggplot2) # for creating ggplots
 library(stringr) # for str_to_title()
 library(caret) # for model training and evaluation
 library(gbm) #Needed this library to run the training function for boosted tree
-library(rmarkdown)
 ```
 
 ## Reading in Dataset
@@ -60,40 +59,9 @@ Now, we will read in our data set.
 
 ```{r Data Import}
 # reading in the data
-data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
+data <- read_csv("data/OnlineNewsPopularity.csv", show_col_types=FALSE)
 head(data) #viewing the first 6 observations of the data
 ```
-
-```{r Channel Name Extraction}
-channel_vars <- data %>% select(starts_with("data_channel_is_")) %>% 
-  pivot_longer(cols=everything(), names_to = "Channels")
-#Selecting all of the variables in the imported data that start with 
-#data_channel_is_ and pivoting the data to long format so that the 
-#channel names can be extracted
-
-strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))
-#Utilizing strsplit to split the data channel names by underscore
-
-channel_names <- c()
-#Creating empty atomic vector for loop below
-
-for(i in 1:length(strings)){
-  if(!(strings[i] %in% c("data", "channel", "is"))){
-    #Checking to see if string is not equal to the uninterested strings above
-    channel_names[i] <- strings[i]
-    #saving the strings of interest in previously created atomic vector
-  }
-}
-channel_names <- channel_names[!is.na(channel_names)] #removing NA values
-
-output_file <- paste0(channel_names, ".html") 
-#adding .html to end of channel names
-params <- lapply(channel_names, FUN = function(x){list(channel = x)})
-#creating params list for rendering step later on
-reports <- tibble(output_file, params)
-#creating report tibble for the output_file names and params
-```
-
 
 Next, we will subset our data set into one with the desired channel of interest.  
 
@@ -162,7 +130,7 @@ channelTrain_summary <- channelTrain
 After splitting our data into train and test sets, we will now create some 
 summary statistics and analysis plots on our train set.  
 
-#### The following summarizations were created by Sandra Aziz
+### The following summarizations were created by Sandra Aziz
 
 ```{r summaries 1}
 # summary stats for shares
@@ -207,7 +175,7 @@ Above are three scatter plots that explore the relationship between the number
 of shares and the number of words in the content, the positive word rate, and 
 negative word rate, respectively.  
 
-#### The following summarizations were created by Simon Weisenhorn
+### The following summarizations were created by Simon Weisenhorn
 
 ```{r Numerical Summaries by Day}
 

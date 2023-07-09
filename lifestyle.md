@@ -43,12 +43,11 @@ Before we load our data or do any analysis, we will first load the
 libraries needed throughout the project:
 
 ``` r
-library(tidyverse)
+library(tidyverse) #for cleaning the data
 library(ggplot2) # for creating ggplots
 library(stringr) # for str_to_title()
 library(caret) # for model training and evaluation
 library(gbm) #Needed this library to run the training function for boosted tree
-library(rmarkdown)
 ```
 
 ## Reading in Dataset
@@ -57,56 +56,26 @@ Now, we will read in our data set.
 
 ``` r
 # reading in the data
-data <- read_csv("../data/OnlineNewsPopularity.csv", show_col_types=FALSE)
+data <- read_csv("data/OnlineNewsPopularity.csv", show_col_types=FALSE)
 head(data) #viewing the first 6 observations of the data
 ```
 
     ## # A tibble: 6 × 61
-    ##   url           timedelta n_tokens_title n_tokens_content n_unique_tokens n_non_stop_words n_non_stop_unique_to…¹ num_hrefs num_self_hrefs num_imgs
-    ##   <chr>             <dbl>          <dbl>            <dbl>           <dbl>            <dbl>                  <dbl>     <dbl>          <dbl>    <dbl>
-    ## 1 http://masha…       731             12              219           0.664             1.00                  0.815         4              2        1
-    ## 2 http://masha…       731              9              255           0.605             1.00                  0.792         3              1        1
-    ## 3 http://masha…       731              9              211           0.575             1.00                  0.664         3              1        1
-    ## 4 http://masha…       731              9              531           0.504             1.00                  0.666         9              0        1
-    ## 5 http://masha…       731             13             1072           0.416             1.00                  0.541        19             19       20
-    ## 6 http://masha…       731             10              370           0.560             1.00                  0.698         2              2        0
-    ## # ℹ abbreviated name: ¹​n_non_stop_unique_tokens
-    ## # ℹ 51 more variables: num_videos <dbl>, average_token_length <dbl>, num_keywords <dbl>, data_channel_is_lifestyle <dbl>,
-    ## #   data_channel_is_entertainment <dbl>, data_channel_is_bus <dbl>, data_channel_is_socmed <dbl>, data_channel_is_tech <dbl>,
-    ## #   data_channel_is_world <dbl>, kw_min_min <dbl>, kw_max_min <dbl>, kw_avg_min <dbl>, kw_min_max <dbl>, kw_max_max <dbl>, kw_avg_max <dbl>,
-    ## #   kw_min_avg <dbl>, kw_max_avg <dbl>, kw_avg_avg <dbl>, self_reference_min_shares <dbl>, self_reference_max_shares <dbl>,
-    ## #   self_reference_avg_sharess <dbl>, weekday_is_monday <dbl>, weekday_is_tuesday <dbl>, weekday_is_wednesday <dbl>, weekday_is_thursday <dbl>,
-    ## #   weekday_is_friday <dbl>, weekday_is_saturday <dbl>, weekday_is_sunday <dbl>, is_weekend <dbl>, LDA_00 <dbl>, LDA_01 <dbl>, LDA_02 <dbl>, …
-
-``` r
-channel_vars <- data %>% select(starts_with("data_channel_is_")) %>% 
-  pivot_longer(cols=everything(), names_to = "Channels")
-#Selecting all of the variables in the imported data that start with 
-#data_channel_is_ and pivoting the data to long format so that the 
-#channel names can be extracted
-
-strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))
-#Utilizing strsplit to split the data channel names by underscore
-
-channel_names <- c()
-#Creating empty atomic vector for loop below
-
-for(i in 1:length(strings)){
-  if(!(strings[i] %in% c("data", "channel", "is"))){
-    #Checking to see if string is not equal to the uninterested strings above
-    channel_names[i] <- strings[i]
-    #saving the strings of interest in previously created atomic vector
-  }
-}
-channel_names <- channel_names[!is.na(channel_names)] #removing NA values
-
-output_file <- paste0(channel_names, ".html") 
-#adding .html to end of channel names
-params <- lapply(channel_names, FUN = function(x){list(channel = x)})
-#creating params list for rendering step later on
-reports <- tibble(output_file, params)
-#creating report tibble for the output_file names and params
-```
+    ##   url                  timedelta n_tokens_title n_tokens_content n_unique_tokens
+    ##   <chr>                    <dbl>          <dbl>            <dbl>           <dbl>
+    ## 1 http://mashable.com…       731             12              219           0.664
+    ## 2 http://mashable.com…       731              9              255           0.605
+    ## 3 http://mashable.com…       731              9              211           0.575
+    ## 4 http://mashable.com…       731              9              531           0.504
+    ## 5 http://mashable.com…       731             13             1072           0.416
+    ## 6 http://mashable.com…       731             10              370           0.560
+    ## # ℹ 56 more variables: n_non_stop_words <dbl>, n_non_stop_unique_tokens <dbl>,
+    ## #   num_hrefs <dbl>, num_self_hrefs <dbl>, num_imgs <dbl>, num_videos <dbl>,
+    ## #   average_token_length <dbl>, num_keywords <dbl>,
+    ## #   data_channel_is_lifestyle <dbl>, data_channel_is_entertainment <dbl>,
+    ## #   data_channel_is_bus <dbl>, data_channel_is_socmed <dbl>,
+    ## #   data_channel_is_tech <dbl>, data_channel_is_world <dbl>, kw_min_min <dbl>,
+    ## #   kw_max_min <dbl>, kw_avg_min <dbl>, kw_min_max <dbl>, kw_max_max <dbl>, …
 
 Next, we will subset our data set into one with the desired channel of
 interest.
@@ -153,21 +122,21 @@ head(channel_data) #inspecting subsetted data
 ```
 
     ## # A tibble: 6 × 55
-    ##   timedelta n_tokens_title n_tokens_content n_unique_tokens n_non_stop_words n_non_stop_unique_tokens num_hrefs num_self_hrefs num_imgs num_videos
-    ##       <dbl>          <dbl>            <dbl>           <dbl>            <dbl>                    <dbl>     <dbl>          <dbl>    <dbl>      <dbl>
-    ## 1       731              8              960           0.418             1.00                    0.550        21             20       20          0
-    ## 2       731             10              187           0.667             1.00                    0.800         7              0        1          0
-    ## 3       731             11              103           0.689             1.00                    0.806         3              1        1          0
-    ## 4       731             10              243           0.619             1.00                    0.824         1              1        0          0
-    ## 5       731              8              204           0.586             1.00                    0.698         7              2        1          0
-    ## 6       731             11              315           0.551             1.00                    0.702         4              4        1          0
-    ## # ℹ 45 more variables: average_token_length <dbl>, num_keywords <dbl>, data_channel_is_lifestyle <dbl>, kw_min_min <dbl>, kw_max_min <dbl>,
-    ## #   kw_avg_min <dbl>, kw_min_max <dbl>, kw_max_max <dbl>, kw_avg_max <dbl>, kw_min_avg <dbl>, kw_max_avg <dbl>, kw_avg_avg <dbl>,
-    ## #   self_reference_min_shares <dbl>, self_reference_max_shares <dbl>, self_reference_avg_sharess <dbl>, weekday_is_monday <dbl>,
-    ## #   weekday_is_tuesday <dbl>, weekday_is_wednesday <dbl>, weekday_is_thursday <dbl>, weekday_is_friday <dbl>, weekday_is_saturday <dbl>,
-    ## #   weekday_is_sunday <dbl>, is_weekend <dbl>, LDA_00 <dbl>, LDA_01 <dbl>, LDA_02 <dbl>, LDA_03 <dbl>, LDA_04 <dbl>, global_subjectivity <dbl>,
-    ## #   global_sentiment_polarity <dbl>, global_rate_positive_words <dbl>, global_rate_negative_words <dbl>, rate_positive_words <dbl>,
-    ## #   rate_negative_words <dbl>, avg_positive_polarity <dbl>, min_positive_polarity <dbl>, max_positive_polarity <dbl>, …
+    ##   timedelta n_tokens_title n_tokens_content n_unique_tokens n_non_stop_words
+    ##       <dbl>          <dbl>            <dbl>           <dbl>            <dbl>
+    ## 1       731              8              960           0.418             1.00
+    ## 2       731             10              187           0.667             1.00
+    ## 3       731             11              103           0.689             1.00
+    ## 4       731             10              243           0.619             1.00
+    ## 5       731              8              204           0.586             1.00
+    ## 6       731             11              315           0.551             1.00
+    ## # ℹ 50 more variables: n_non_stop_unique_tokens <dbl>, num_hrefs <dbl>,
+    ## #   num_self_hrefs <dbl>, num_imgs <dbl>, num_videos <dbl>,
+    ## #   average_token_length <dbl>, num_keywords <dbl>,
+    ## #   data_channel_is_lifestyle <dbl>, kw_min_min <dbl>, kw_max_min <dbl>,
+    ## #   kw_avg_min <dbl>, kw_min_max <dbl>, kw_max_max <dbl>, kw_avg_max <dbl>,
+    ## #   kw_min_avg <dbl>, kw_max_avg <dbl>, kw_avg_avg <dbl>,
+    ## #   self_reference_min_shares <dbl>, self_reference_max_shares <dbl>, …
 
 Now that we’ve subset our data set. We will now split it into train and
 test sets for summary and analysis purposes.
@@ -193,7 +162,7 @@ channelTrain_summary <- channelTrain
 After splitting our data into train and test sets, we will now create
 some summary statistics and analysis plots on our train set.
 
-#### The following summarizations were created by Sandra Aziz
+### The following summarizations were created by Sandra Aziz
 
 ``` r
 # summary stats for shares
@@ -260,7 +229,7 @@ Above are three scatter plots that explore the relationship between the
 number of shares and the number of words in the content, the positive
 word rate, and negative word rate, respectively.
 
-#### The following summarizations were created by Simon Weisenhorn
+### The following summarizations were created by Simon Weisenhorn
 
 ``` r
 sunday_data <- channelTrain_summary %>% filter(weekday_is_sunday == 1) %>% 
@@ -677,207 +646,408 @@ summary(simon_share_lmfit)
     ## -12076  -1661      0   1515  40027 
     ## 
     ## Coefficients: (304 not defined because of singularities)
-    ##                                                             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)                                                3.645e+03  1.772e+02  20.570  < 2e-16 ***
-    ## timedelta                                                 -7.460e+09  2.775e+10  -0.269 0.788268    
-    ## n_tokens_title                                             3.724e+09  1.385e+10   0.269 0.788266    
-    ## n_tokens_content                                          -8.481e+04  5.631e+04  -1.506 0.133154    
-    ## n_unique_tokens                                           -2.429e+04  5.766e+04  -0.421 0.673907    
-    ## n_non_stop_words                                          -5.326e+10  1.981e+11  -0.269 0.788266    
-    ## n_non_stop_unique_tokens                                  -3.893e+04  5.204e+04  -0.748 0.455033    
-    ## num_hrefs                                                 -3.406e+04  3.345e+04  -1.018 0.309460    
-    ## num_self_hrefs                                             2.738e+04  2.713e+04   1.009 0.313667    
-    ## num_imgs                                                  -3.564e+09  1.326e+10  -0.269 0.788268    
-    ## num_videos                                                 3.040e+09  1.131e+10   0.269 0.788264    
-    ## average_token_length                                       3.103e+04  3.017e+04   1.029 0.304506    
-    ## num_keywords                                               1.919e+09  7.138e+09   0.269 0.788265    
-    ## data_channel_is_lifestyle                                         NA         NA      NA       NA    
-    ## kw_min_min                                                -1.992e+11  7.410e+11  -0.269 0.788266    
-    ## kw_max_min                                                -2.972e+10  1.106e+11  -0.269 0.788267    
-    ## kw_avg_min                                                 3.625e+10  1.349e+11   0.269 0.788266    
-    ## kw_min_max                                                 3.952e+09  1.470e+10   0.269 0.788262    
-    ## kw_max_max                                                -1.696e+11  6.310e+11  -0.269 0.788266    
-    ## kw_avg_max                                                -2.702e+09  1.005e+10  -0.269 0.788265    
-    ## kw_min_avg                                                 3.976e+08  1.479e+09   0.269 0.788283    
-    ## kw_max_avg                                                 9.735e+09  3.622e+10   0.269 0.788276    
-    ## kw_avg_avg                                                -4.066e+09  1.513e+10  -0.269 0.788272    
-    ## self_reference_min_shares                                 -1.166e+05  3.816e+05  -0.306 0.760190    
-    ## self_reference_max_shares                                 -2.981e+05  7.873e+05  -0.379 0.705229    
-    ## self_reference_avg_sharess                                 3.822e+05  9.948e+05   0.384 0.701073    
-    ## weekday_is_monday                                          1.440e+04  2.940e+04   0.490 0.624740    
-    ## weekday_is_tuesday                                         5.649e+04  2.891e+04   1.954 0.051720 .  
-    ## weekday_is_wednesday                                       2.800e+04  3.141e+04   0.891 0.373494    
-    ## weekday_is_thursday                                        5.695e+04  2.971e+04   1.917 0.056261 .  
-    ## weekday_is_friday                                          2.894e+04  2.698e+04   1.073 0.284351    
-    ## weekday_is_saturday                                        7.187e+04  2.943e+04   2.442 0.015194 *  
-    ## weekday_is_sunday                                                 NA         NA      NA       NA    
-    ## is_weekend                                                        NA         NA      NA       NA    
-    ## LDA_00                                                    -2.324e+04  1.896e+04  -1.226 0.221132    
-    ## LDA_01                                                     7.582e+03  1.955e+04   0.388 0.698356    
-    ## LDA_02                                                     3.738e+03  2.077e+04   0.180 0.857299    
-    ## LDA_03                                                     5.765e+04  2.505e+04   2.302 0.022067 *  
-    ## LDA_04                                                            NA         NA      NA       NA    
-    ## global_subjectivity                                       -3.322e+04  2.586e+04  -1.285 0.199963    
-    ## global_sentiment_polarity                                  3.034e+04  4.851e+04   0.626 0.532129    
-    ## global_rate_positive_words                                -2.797e+04  4.945e+04  -0.566 0.572074    
-    ## global_rate_negative_words                                 4.329e+04  4.145e+04   1.044 0.297169    
-    ## rate_positive_words                                        4.699e+04  5.954e+04   0.789 0.430605    
-    ## rate_negative_words                                               NA         NA      NA       NA    
-    ## avg_positive_polarity                                     -2.490e+04  3.587e+04  -0.694 0.488140    
-    ## min_positive_polarity                                      2.720e+04  2.135e+04   1.274 0.203685    
-    ## max_positive_polarity                                     -7.887e+03  2.727e+04  -0.289 0.772605    
-    ## avg_negative_polarity                                     -2.017e+04  4.356e+04  -0.463 0.643746    
-    ## min_negative_polarity                                     -6.152e+02  3.731e+04  -0.016 0.986854    
-    ## max_negative_polarity                                      2.536e+03  3.593e+04   0.071 0.943773    
-    ## title_subjectivity                                        -1.292e+04  3.318e+04  -0.389 0.697242    
-    ## title_sentiment_polarity                                   1.650e+09  6.137e+09   0.269 0.788271    
-    ## abs_title_subjectivity                                    -3.349e+04  2.269e+04  -1.476 0.140986    
-    ## abs_title_sentiment_polarity                              -2.284e+04  4.386e+04  -0.521 0.602934    
-    ## `timedelta:n_tokens_title`                                -5.165e+02  4.491e+03  -0.115 0.908509    
-    ## `timedelta:n_tokens_content`                               6.824e+03  4.289e+03   1.591 0.112686    
-    ## `timedelta:n_unique_tokens`                                1.643e+04  2.066e+04   0.795 0.427113    
-    ## `timedelta:n_non_stop_words`                               7.514e+09  2.795e+10   0.269 0.788267    
-    ## `timedelta:n_non_stop_unique_tokens`                      -2.238e+03  2.194e+04  -0.102 0.918807    
-    ## `timedelta:num_hrefs`                                     -4.781e+03  2.747e+03  -1.740 0.082842 .  
-    ## `timedelta:num_self_hrefs`                                -2.748e+03  3.752e+03  -0.732 0.464514    
-    ## `timedelta:num_imgs`                                       2.968e+03  2.899e+03   1.024 0.306776    
-    ## `timedelta:num_videos`                                     7.430e+03  3.811e+03   1.950 0.052197 .  
-    ## `timedelta:average_token_length`                          -1.658e+04  1.869e+04  -0.887 0.375659    
-    ## `timedelta:num_keywords`                                  -1.726e+02  5.048e+03  -0.034 0.972749    
-    ## `timedelta:data_channel_is_lifestyle`                             NA         NA      NA       NA    
-    ## `timedelta:kw_min_min`                                    -2.582e+04  2.962e+04  -0.872 0.384129    
-    ## `timedelta:kw_max_min`                                    -4.800e+03  1.478e+04  -0.325 0.745645    
-    ## `timedelta:kw_avg_min`                                     9.024e+03  1.353e+04   0.667 0.505288    
-    ## `timedelta:kw_min_max`                                    -1.794e+03  2.552e+03  -0.703 0.482604    
-    ## `timedelta:kw_max_max`                                    -1.650e+04  2.031e+04  -0.812 0.417338    
-    ## `timedelta:kw_avg_max`                                    -1.614e+02  2.852e+03  -0.057 0.954918    
-    ## `timedelta:kw_min_avg`                                    -1.562e+03  2.550e+03  -0.613 0.540610    
-    ## `timedelta:kw_max_avg`                                    -4.422e+03  9.262e+03  -0.477 0.633432    
-    ## `timedelta:kw_avg_avg`                                     2.447e+02  8.173e+03   0.030 0.976134    
-    ## `timedelta:self_reference_min_shares`                      4.191e+04  3.235e+04   1.295 0.196284    
-    ## `timedelta:self_reference_max_shares`                      9.443e+04  9.055e+04   1.043 0.297843    
-    ## `timedelta:self_reference_avg_sharess`                    -1.254e+05  1.100e+05  -1.141 0.254992    
-    ## `timedelta:weekday_is_monday`                              3.089e+03  2.779e+03   1.112 0.267244    
-    ## `timedelta:weekday_is_tuesday`                             4.806e+03  2.960e+03   1.624 0.105538    
-    ## `timedelta:weekday_is_wednesday`                           3.119e+03  3.072e+03   1.015 0.310954    
-    ## `timedelta:weekday_is_thursday`                            3.328e+03  2.895e+03   1.150 0.251229    
-    ## `timedelta:weekday_is_friday`                              1.963e+03  3.235e+03   0.607 0.544417    
-    ## `timedelta:weekday_is_saturday`                            6.017e+02  1.933e+03   0.311 0.755861    
-    ## `timedelta:weekday_is_sunday`                                     NA         NA      NA       NA    
-    ## `timedelta:is_weekend`                                            NA         NA      NA       NA    
-    ## `timedelta:LDA_00`                                        -1.429e+02  1.931e+03  -0.074 0.941060    
-    ## `timedelta:LDA_01`                                        -1.736e+03  2.037e+03  -0.853 0.394600    
-    ## `timedelta:LDA_02`                                         2.484e+03  1.995e+03   1.245 0.214234    
-    ## `timedelta:LDA_03`                                         3.535e+03  2.002e+03   1.765 0.078563 .  
-    ## `timedelta:LDA_04`                                                NA         NA      NA       NA    
-    ## `timedelta:global_subjectivity`                            9.239e+03  8.004e+03   1.154 0.249347    
-    ## `timedelta:global_sentiment_polarity`                      1.027e+04  7.708e+03   1.332 0.183897    
-    ## `timedelta:global_rate_positive_words`                    -3.746e+03  7.722e+03  -0.485 0.627960    
-    ## `timedelta:global_rate_negative_words`                    -3.261e+03  8.297e+03  -0.393 0.694595    
-    ## `timedelta:rate_positive_words`                           -1.735e+04  2.503e+04  -0.693 0.488862    
-    ## `timedelta:rate_negative_words`                                   NA         NA      NA       NA    
-    ## `timedelta:avg_positive_polarity`                         -1.665e+04  9.817e+03  -1.696 0.090943 .  
-    ## `timedelta:min_positive_polarity`                          3.443e+03  4.039e+03   0.852 0.394718    
-    ## `timedelta:max_positive_polarity`                          5.342e+03  6.125e+03   0.872 0.383898    
-    ## `timedelta:avg_negative_polarity`                         -1.044e+04  6.742e+03  -1.549 0.122426    
-    ## `timedelta:min_negative_polarity`                         -7.638e+01  4.717e+03  -0.016 0.987092    
-    ## `timedelta:max_negative_polarity`                          8.265e+03  3.414e+03   2.421 0.016096 *  
-    ## `timedelta:title_subjectivity`                             1.085e+03  2.996e+03   0.362 0.717579    
-    ## `timedelta:title_sentiment_polarity`                       3.523e+02  2.815e+03   0.125 0.900478    
-    ## `timedelta:abs_title_subjectivity`                        -2.383e+02  3.040e+03  -0.078 0.937562    
-    ## `timedelta:abs_title_sentiment_polarity`                  -3.132e+02  3.771e+03  -0.083 0.933859    
-    ## `n_tokens_title:n_tokens_content`                          2.688e+03  6.359e+03   0.423 0.672864    
-    ## `n_tokens_title:n_unique_tokens`                          -1.527e+04  1.368e+04  -1.116 0.265303    
-    ## `n_tokens_title:n_non_stop_words`                         -4.157e+09  1.546e+10  -0.269 0.788265    
-    ## `n_tokens_title:n_non_stop_unique_tokens`                  1.295e+04  1.328e+04   0.975 0.330465    
-    ## `n_tokens_title:num_hrefs`                                -2.272e+00  4.401e+03  -0.001 0.999588    
-    ## `n_tokens_title:num_self_hrefs`                           -9.862e+02  3.530e+03  -0.279 0.780191    
-    ## `n_tokens_title:num_imgs`                                 -2.382e+03  5.701e+03  -0.418 0.676452    
-    ## `n_tokens_title:num_videos`                                1.068e+04  7.084e+03   1.507 0.132826    
-    ## `n_tokens_title:average_token_length`                      4.782e+03  1.024e+04   0.467 0.640895    
-    ## `n_tokens_title:num_keywords`                             -7.109e+03  3.777e+03  -1.882 0.060800 .  
-    ## `n_tokens_title:data_channel_is_lifestyle`                        NA         NA      NA       NA    
-    ## `n_tokens_title:kw_min_min`                                3.558e+03  4.907e+03   0.725 0.468977    
-    ## `n_tokens_title:kw_max_min`                                6.246e+04  3.100e+04   2.015 0.044830 *  
-    ## `n_tokens_title:kw_avg_min`                               -5.101e+04  2.581e+04  -1.976 0.049062 *  
-    ## `n_tokens_title:kw_min_max`                               -1.358e+03  5.442e+03  -0.250 0.803097    
-    ## `n_tokens_title:kw_max_max`                                3.454e+03  7.075e+03   0.488 0.625769    
-    ## `n_tokens_title:kw_avg_max`                               -1.293e+04  7.526e+03  -1.717 0.086982 .  
-    ## `n_tokens_title:kw_min_avg`                               -3.683e+03  4.106e+03  -0.897 0.370411    
-    ## `n_tokens_title:kw_max_avg`                               -4.960e+03  1.203e+04  -0.412 0.680354    
-    ## `n_tokens_title:kw_avg_avg`                                1.750e+04  1.073e+04   1.630 0.104084    
-    ## `n_tokens_title:self_reference_min_shares`                -1.764e+03  4.479e+04  -0.039 0.968614    
-    ## `n_tokens_title:self_reference_max_shares`                 1.751e+04  9.230e+04   0.190 0.849633    
-    ## `n_tokens_title:self_reference_avg_sharess`               -7.835e+03  1.160e+05  -0.068 0.946197    
-    ## `n_tokens_title:weekday_is_monday`                        -8.974e+03  3.549e+03  -2.529 0.011975 *  
-    ## `n_tokens_title:weekday_is_tuesday`                       -1.990e+03  3.371e+03  -0.590 0.555484    
-    ## `n_tokens_title:weekday_is_wednesday`                     -7.133e+03  3.736e+03  -1.909 0.057237 .  
-    ## `n_tokens_title:weekday_is_thursday`                      -9.013e+03  3.447e+03  -2.615 0.009392 ** 
-    ## `n_tokens_title:weekday_is_friday`                        -6.516e+03  3.467e+03  -1.879 0.061203 .  
-    ## `n_tokens_title:weekday_is_saturday`                      -4.855e+03  3.541e+03  -1.371 0.171388    
-    ## `n_tokens_title:weekday_is_sunday`                                NA         NA      NA       NA    
-    ## `n_tokens_title:is_weekend`                                       NA         NA      NA       NA    
-    ## `n_tokens_title:LDA_00`                                   -4.614e+03  2.621e+03  -1.760 0.079384 .  
-    ## `n_tokens_title:LDA_01`                                    5.727e+02  2.889e+03   0.198 0.842986    
-    ## `n_tokens_title:LDA_02`                                    2.248e+03  2.433e+03   0.924 0.356186    
-    ## `n_tokens_title:LDA_03`                                   -5.382e+03  3.615e+03  -1.489 0.137667    
-    ## `n_tokens_title:LDA_04`                                           NA         NA      NA       NA    
-    ## `n_tokens_title:global_subjectivity`                       1.215e+04  5.476e+03   2.218 0.027312 *  
-    ## `n_tokens_title:global_sentiment_polarity`                -1.055e+04  7.349e+03  -1.435 0.152388    
-    ## `n_tokens_title:global_rate_positive_words`                5.857e+03  6.551e+03   0.894 0.372097    
-    ## `n_tokens_title:global_rate_negative_words`               -7.827e+03  9.204e+03  -0.850 0.395766    
-    ## `n_tokens_title:rate_positive_words`                      -5.074e+03  1.594e+04  -0.318 0.750433    
-    ## `n_tokens_title:rate_negative_words`                              NA         NA      NA       NA    
-    ## `n_tokens_title:avg_positive_polarity`                    -1.812e+03  6.251e+03  -0.290 0.772164    
-    ## `n_tokens_title:min_positive_polarity`                     3.881e+03  3.485e+03   1.114 0.266298    
-    ## `n_tokens_title:max_positive_polarity`                     9.949e+03  4.935e+03   2.016 0.044725 *  
-    ## `n_tokens_title:avg_negative_polarity`                     6.061e+01  6.123e+03   0.010 0.992110    
-    ## `n_tokens_title:min_negative_polarity`                     4.632e+03  4.784e+03   0.968 0.333795    
-    ## `n_tokens_title:max_negative_polarity`                    -1.753e+03  4.743e+03  -0.370 0.711946    
-    ## `n_tokens_title:title_subjectivity`                        7.878e+02  4.097e+03   0.192 0.847653    
-    ## `n_tokens_title:title_sentiment_polarity`                 -1.745e+03  5.095e+03  -0.342 0.732259    
-    ## `n_tokens_title:abs_title_subjectivity`                    2.169e+02  3.253e+03   0.067 0.946866    
-    ## `n_tokens_title:abs_title_sentiment_polarity`              1.825e+02  5.460e+03   0.033 0.973351    
-    ## `n_tokens_content:n_unique_tokens`                        -3.590e+03  9.630e+03  -0.373 0.709577    
-    ## `n_tokens_content:n_non_stop_words`                               NA         NA      NA       NA    
-    ## `n_tokens_content:n_non_stop_unique_tokens`                2.021e+04  1.480e+04   1.365 0.173178    
-    ## `n_tokens_content:num_hrefs`                               2.932e+03  4.304e+03   0.681 0.496257    
-    ## `n_tokens_content:num_self_hrefs`                          3.704e+03  3.618e+03   1.024 0.306801    
-    ## `n_tokens_content:num_imgs`                                3.165e+03  8.540e+03   0.371 0.711228    
-    ## `n_tokens_content:num_videos`                             -6.692e+03  3.590e+03  -1.864 0.063342 .  
-    ## `n_tokens_content:average_token_length`                   -2.427e+04  2.439e+04  -0.995 0.320481    
-    ## `n_tokens_content:num_keywords`                            8.731e+03  8.342e+03   1.047 0.296160    
-    ## `n_tokens_content:data_channel_is_lifestyle`                      NA         NA      NA       NA    
-    ## `n_tokens_content:kw_min_min`                              1.991e+02  4.533e+03   0.044 0.964988    
-    ## `n_tokens_content:kw_max_min`                              1.239e+04  1.945e+04   0.637 0.524635    
-    ## `n_tokens_content:kw_avg_min`                             -1.966e+04  1.701e+04  -1.156 0.248586    
-    ## `n_tokens_content:kw_min_max`                              1.274e+03  3.916e+03   0.325 0.745198    
-    ## `n_tokens_content:kw_max_max`                             -8.051e+03  1.376e+04  -0.585 0.559020    
-    ## `n_tokens_content:kw_avg_max`                              1.981e+03  8.650e+03   0.229 0.818979    
-    ## `n_tokens_content:kw_min_avg`                             -5.159e+03  4.112e+03  -1.255 0.210651    
-    ## `n_tokens_content:kw_max_avg`                             -1.164e+04  1.087e+04  -1.070 0.285385    
-    ## `n_tokens_content:kw_avg_avg`                              1.910e+04  1.624e+04   1.176 0.240492    
-    ## `n_tokens_content:self_reference_min_shares`              -9.955e+03  2.462e+04  -0.404 0.686257    
-    ## `n_tokens_content:self_reference_max_shares`              -9.555e+03  5.705e+04  -0.167 0.867110    
-    ## `n_tokens_content:self_reference_avg_sharess`              2.260e+04  6.785e+04   0.333 0.739335    
-    ## `n_tokens_content:weekday_is_monday`                      -6.470e+03  2.593e+03  -2.495 0.013139 *  
-    ## `n_tokens_content:weekday_is_tuesday`                     -3.865e+03  2.686e+03  -1.439 0.151206    
-    ## `n_tokens_content:weekday_is_wednesday`                   -3.092e+03  3.613e+03  -0.856 0.392838    
-    ## `n_tokens_content:weekday_is_thursday`                    -4.519e+03  2.938e+03  -1.538 0.125173    
-    ## `n_tokens_content:weekday_is_friday`                      -3.724e+03  3.117e+03  -1.194 0.233281    
-    ## `n_tokens_content:weekday_is_saturday`                    -3.916e+03  3.658e+03  -1.071 0.285192    
-    ## `n_tokens_content:weekday_is_sunday`                              NA         NA      NA       NA    
-    ## `n_tokens_content:is_weekend`                                     NA         NA      NA       NA    
-    ## `n_tokens_content:LDA_00`                                  2.684e+03  2.563e+03   1.047 0.295893    
-    ## `n_tokens_content:LDA_01`                                 -3.460e+03  2.483e+03  -1.394 0.164499    
-    ## `n_tokens_content:LDA_02`                                  5.582e+03  2.279e+03   2.449 0.014921 *  
-    ## `n_tokens_content:LDA_03`                                  3.504e+03  4.194e+03   0.836 0.404101    
-    ## `n_tokens_content:LDA_04`                                         NA         NA      NA       NA    
-    ## `n_tokens_content:global_subjectivity`                     8.410e+03  1.464e+04   0.575 0.566050    
-    ## `n_tokens_content:global_sentiment_polarity`              -1.676e+04  1.370e+04  -1.224 0.222036    
-    ## `n_tokens_content:global_rate_positive_words`             -5.161e+03  1.712e+04  -0.302 0.763206    
-    ## `n_tokens_content:global_rate_negative_words`              9.349e+03  1.411e+04   0.662 0.508244    
-    ## `n_tokens_content:rate_positive_words`                     5.066e+04  4.811e+04   1.053 0.293228    
+    ##                                                             Estimate Std. Error
+    ## (Intercept)                                                3.645e+03  1.772e+02
+    ## timedelta                                                 -7.460e+09  2.775e+10
+    ## n_tokens_title                                             3.724e+09  1.385e+10
+    ## n_tokens_content                                          -8.481e+04  5.631e+04
+    ## n_unique_tokens                                           -2.429e+04  5.766e+04
+    ## n_non_stop_words                                          -5.326e+10  1.981e+11
+    ## n_non_stop_unique_tokens                                  -3.893e+04  5.204e+04
+    ## num_hrefs                                                 -3.406e+04  3.345e+04
+    ## num_self_hrefs                                             2.738e+04  2.713e+04
+    ## num_imgs                                                  -3.564e+09  1.326e+10
+    ## num_videos                                                 3.040e+09  1.131e+10
+    ## average_token_length                                       3.103e+04  3.017e+04
+    ## num_keywords                                               1.919e+09  7.138e+09
+    ## data_channel_is_lifestyle                                         NA         NA
+    ## kw_min_min                                                -1.992e+11  7.410e+11
+    ## kw_max_min                                                -2.972e+10  1.106e+11
+    ## kw_avg_min                                                 3.625e+10  1.349e+11
+    ## kw_min_max                                                 3.952e+09  1.470e+10
+    ## kw_max_max                                                -1.696e+11  6.310e+11
+    ## kw_avg_max                                                -2.702e+09  1.005e+10
+    ## kw_min_avg                                                 3.976e+08  1.479e+09
+    ## kw_max_avg                                                 9.735e+09  3.622e+10
+    ## kw_avg_avg                                                -4.066e+09  1.513e+10
+    ## self_reference_min_shares                                 -1.166e+05  3.816e+05
+    ## self_reference_max_shares                                 -2.981e+05  7.873e+05
+    ## self_reference_avg_sharess                                 3.822e+05  9.948e+05
+    ## weekday_is_monday                                          1.440e+04  2.940e+04
+    ## weekday_is_tuesday                                         5.649e+04  2.891e+04
+    ## weekday_is_wednesday                                       2.800e+04  3.141e+04
+    ## weekday_is_thursday                                        5.695e+04  2.971e+04
+    ## weekday_is_friday                                          2.894e+04  2.698e+04
+    ## weekday_is_saturday                                        7.187e+04  2.943e+04
+    ## weekday_is_sunday                                                 NA         NA
+    ## is_weekend                                                        NA         NA
+    ## LDA_00                                                    -2.324e+04  1.896e+04
+    ## LDA_01                                                     7.582e+03  1.955e+04
+    ## LDA_02                                                     3.738e+03  2.077e+04
+    ## LDA_03                                                     5.765e+04  2.505e+04
+    ## LDA_04                                                            NA         NA
+    ## global_subjectivity                                       -3.322e+04  2.586e+04
+    ## global_sentiment_polarity                                  3.034e+04  4.851e+04
+    ## global_rate_positive_words                                -2.797e+04  4.945e+04
+    ## global_rate_negative_words                                 4.329e+04  4.145e+04
+    ## rate_positive_words                                        4.699e+04  5.954e+04
+    ## rate_negative_words                                               NA         NA
+    ## avg_positive_polarity                                     -2.490e+04  3.587e+04
+    ## min_positive_polarity                                      2.720e+04  2.135e+04
+    ## max_positive_polarity                                     -7.887e+03  2.727e+04
+    ## avg_negative_polarity                                     -2.017e+04  4.356e+04
+    ## min_negative_polarity                                     -6.152e+02  3.731e+04
+    ## max_negative_polarity                                      2.536e+03  3.593e+04
+    ## title_subjectivity                                        -1.292e+04  3.318e+04
+    ## title_sentiment_polarity                                   1.650e+09  6.137e+09
+    ## abs_title_subjectivity                                    -3.349e+04  2.269e+04
+    ## abs_title_sentiment_polarity                              -2.284e+04  4.386e+04
+    ## `timedelta:n_tokens_title`                                -5.165e+02  4.491e+03
+    ## `timedelta:n_tokens_content`                               6.824e+03  4.289e+03
+    ## `timedelta:n_unique_tokens`                                1.643e+04  2.066e+04
+    ## `timedelta:n_non_stop_words`                               7.514e+09  2.795e+10
+    ## `timedelta:n_non_stop_unique_tokens`                      -2.238e+03  2.194e+04
+    ## `timedelta:num_hrefs`                                     -4.781e+03  2.747e+03
+    ## `timedelta:num_self_hrefs`                                -2.748e+03  3.752e+03
+    ## `timedelta:num_imgs`                                       2.968e+03  2.899e+03
+    ## `timedelta:num_videos`                                     7.430e+03  3.811e+03
+    ## `timedelta:average_token_length`                          -1.658e+04  1.869e+04
+    ## `timedelta:num_keywords`                                  -1.726e+02  5.048e+03
+    ## `timedelta:data_channel_is_lifestyle`                             NA         NA
+    ## `timedelta:kw_min_min`                                    -2.582e+04  2.962e+04
+    ## `timedelta:kw_max_min`                                    -4.800e+03  1.478e+04
+    ## `timedelta:kw_avg_min`                                     9.024e+03  1.353e+04
+    ## `timedelta:kw_min_max`                                    -1.794e+03  2.552e+03
+    ## `timedelta:kw_max_max`                                    -1.650e+04  2.031e+04
+    ## `timedelta:kw_avg_max`                                    -1.614e+02  2.852e+03
+    ## `timedelta:kw_min_avg`                                    -1.562e+03  2.550e+03
+    ## `timedelta:kw_max_avg`                                    -4.422e+03  9.262e+03
+    ## `timedelta:kw_avg_avg`                                     2.447e+02  8.173e+03
+    ## `timedelta:self_reference_min_shares`                      4.191e+04  3.235e+04
+    ## `timedelta:self_reference_max_shares`                      9.443e+04  9.055e+04
+    ## `timedelta:self_reference_avg_sharess`                    -1.254e+05  1.100e+05
+    ## `timedelta:weekday_is_monday`                              3.089e+03  2.779e+03
+    ## `timedelta:weekday_is_tuesday`                             4.806e+03  2.960e+03
+    ## `timedelta:weekday_is_wednesday`                           3.119e+03  3.072e+03
+    ## `timedelta:weekday_is_thursday`                            3.328e+03  2.895e+03
+    ## `timedelta:weekday_is_friday`                              1.963e+03  3.235e+03
+    ## `timedelta:weekday_is_saturday`                            6.017e+02  1.933e+03
+    ## `timedelta:weekday_is_sunday`                                     NA         NA
+    ## `timedelta:is_weekend`                                            NA         NA
+    ## `timedelta:LDA_00`                                        -1.429e+02  1.931e+03
+    ## `timedelta:LDA_01`                                        -1.736e+03  2.037e+03
+    ## `timedelta:LDA_02`                                         2.484e+03  1.995e+03
+    ## `timedelta:LDA_03`                                         3.535e+03  2.002e+03
+    ## `timedelta:LDA_04`                                                NA         NA
+    ## `timedelta:global_subjectivity`                            9.239e+03  8.004e+03
+    ## `timedelta:global_sentiment_polarity`                      1.027e+04  7.708e+03
+    ## `timedelta:global_rate_positive_words`                    -3.746e+03  7.722e+03
+    ## `timedelta:global_rate_negative_words`                    -3.261e+03  8.297e+03
+    ## `timedelta:rate_positive_words`                           -1.735e+04  2.503e+04
+    ## `timedelta:rate_negative_words`                                   NA         NA
+    ## `timedelta:avg_positive_polarity`                         -1.665e+04  9.817e+03
+    ## `timedelta:min_positive_polarity`                          3.443e+03  4.039e+03
+    ## `timedelta:max_positive_polarity`                          5.342e+03  6.125e+03
+    ## `timedelta:avg_negative_polarity`                         -1.044e+04  6.742e+03
+    ## `timedelta:min_negative_polarity`                         -7.638e+01  4.717e+03
+    ## `timedelta:max_negative_polarity`                          8.265e+03  3.414e+03
+    ## `timedelta:title_subjectivity`                             1.085e+03  2.996e+03
+    ## `timedelta:title_sentiment_polarity`                       3.523e+02  2.815e+03
+    ## `timedelta:abs_title_subjectivity`                        -2.383e+02  3.040e+03
+    ## `timedelta:abs_title_sentiment_polarity`                  -3.132e+02  3.771e+03
+    ## `n_tokens_title:n_tokens_content`                          2.688e+03  6.359e+03
+    ## `n_tokens_title:n_unique_tokens`                          -1.527e+04  1.368e+04
+    ## `n_tokens_title:n_non_stop_words`                         -4.157e+09  1.546e+10
+    ## `n_tokens_title:n_non_stop_unique_tokens`                  1.295e+04  1.328e+04
+    ## `n_tokens_title:num_hrefs`                                -2.272e+00  4.401e+03
+    ## `n_tokens_title:num_self_hrefs`                           -9.862e+02  3.530e+03
+    ## `n_tokens_title:num_imgs`                                 -2.382e+03  5.701e+03
+    ## `n_tokens_title:num_videos`                                1.068e+04  7.084e+03
+    ## `n_tokens_title:average_token_length`                      4.782e+03  1.024e+04
+    ## `n_tokens_title:num_keywords`                             -7.109e+03  3.777e+03
+    ## `n_tokens_title:data_channel_is_lifestyle`                        NA         NA
+    ## `n_tokens_title:kw_min_min`                                3.558e+03  4.907e+03
+    ## `n_tokens_title:kw_max_min`                                6.246e+04  3.100e+04
+    ## `n_tokens_title:kw_avg_min`                               -5.101e+04  2.581e+04
+    ## `n_tokens_title:kw_min_max`                               -1.358e+03  5.442e+03
+    ## `n_tokens_title:kw_max_max`                                3.454e+03  7.075e+03
+    ## `n_tokens_title:kw_avg_max`                               -1.293e+04  7.526e+03
+    ## `n_tokens_title:kw_min_avg`                               -3.683e+03  4.106e+03
+    ## `n_tokens_title:kw_max_avg`                               -4.960e+03  1.203e+04
+    ## `n_tokens_title:kw_avg_avg`                                1.750e+04  1.073e+04
+    ## `n_tokens_title:self_reference_min_shares`                -1.764e+03  4.479e+04
+    ## `n_tokens_title:self_reference_max_shares`                 1.751e+04  9.230e+04
+    ## `n_tokens_title:self_reference_avg_sharess`               -7.835e+03  1.160e+05
+    ## `n_tokens_title:weekday_is_monday`                        -8.974e+03  3.549e+03
+    ## `n_tokens_title:weekday_is_tuesday`                       -1.990e+03  3.371e+03
+    ## `n_tokens_title:weekday_is_wednesday`                     -7.133e+03  3.736e+03
+    ## `n_tokens_title:weekday_is_thursday`                      -9.013e+03  3.447e+03
+    ## `n_tokens_title:weekday_is_friday`                        -6.516e+03  3.467e+03
+    ## `n_tokens_title:weekday_is_saturday`                      -4.855e+03  3.541e+03
+    ## `n_tokens_title:weekday_is_sunday`                                NA         NA
+    ## `n_tokens_title:is_weekend`                                       NA         NA
+    ## `n_tokens_title:LDA_00`                                   -4.614e+03  2.621e+03
+    ## `n_tokens_title:LDA_01`                                    5.727e+02  2.889e+03
+    ## `n_tokens_title:LDA_02`                                    2.248e+03  2.433e+03
+    ## `n_tokens_title:LDA_03`                                   -5.382e+03  3.615e+03
+    ## `n_tokens_title:LDA_04`                                           NA         NA
+    ## `n_tokens_title:global_subjectivity`                       1.215e+04  5.476e+03
+    ## `n_tokens_title:global_sentiment_polarity`                -1.055e+04  7.349e+03
+    ## `n_tokens_title:global_rate_positive_words`                5.857e+03  6.551e+03
+    ## `n_tokens_title:global_rate_negative_words`               -7.827e+03  9.204e+03
+    ## `n_tokens_title:rate_positive_words`                      -5.074e+03  1.594e+04
+    ## `n_tokens_title:rate_negative_words`                              NA         NA
+    ## `n_tokens_title:avg_positive_polarity`                    -1.812e+03  6.251e+03
+    ## `n_tokens_title:min_positive_polarity`                     3.881e+03  3.485e+03
+    ## `n_tokens_title:max_positive_polarity`                     9.949e+03  4.935e+03
+    ## `n_tokens_title:avg_negative_polarity`                     6.061e+01  6.123e+03
+    ## `n_tokens_title:min_negative_polarity`                     4.632e+03  4.784e+03
+    ## `n_tokens_title:max_negative_polarity`                    -1.753e+03  4.743e+03
+    ## `n_tokens_title:title_subjectivity`                        7.878e+02  4.097e+03
+    ## `n_tokens_title:title_sentiment_polarity`                 -1.745e+03  5.095e+03
+    ## `n_tokens_title:abs_title_subjectivity`                    2.169e+02  3.253e+03
+    ## `n_tokens_title:abs_title_sentiment_polarity`              1.825e+02  5.460e+03
+    ## `n_tokens_content:n_unique_tokens`                        -3.590e+03  9.630e+03
+    ## `n_tokens_content:n_non_stop_words`                               NA         NA
+    ## `n_tokens_content:n_non_stop_unique_tokens`                2.021e+04  1.480e+04
+    ## `n_tokens_content:num_hrefs`                               2.932e+03  4.304e+03
+    ## `n_tokens_content:num_self_hrefs`                          3.704e+03  3.618e+03
+    ## `n_tokens_content:num_imgs`                                3.165e+03  8.540e+03
+    ## `n_tokens_content:num_videos`                             -6.692e+03  3.590e+03
+    ## `n_tokens_content:average_token_length`                   -2.427e+04  2.439e+04
+    ## `n_tokens_content:num_keywords`                            8.731e+03  8.342e+03
+    ## `n_tokens_content:data_channel_is_lifestyle`                      NA         NA
+    ## `n_tokens_content:kw_min_min`                              1.991e+02  4.533e+03
+    ## `n_tokens_content:kw_max_min`                              1.239e+04  1.945e+04
+    ## `n_tokens_content:kw_avg_min`                             -1.966e+04  1.701e+04
+    ## `n_tokens_content:kw_min_max`                              1.274e+03  3.916e+03
+    ## `n_tokens_content:kw_max_max`                             -8.051e+03  1.376e+04
+    ## `n_tokens_content:kw_avg_max`                              1.981e+03  8.650e+03
+    ## `n_tokens_content:kw_min_avg`                             -5.159e+03  4.112e+03
+    ## `n_tokens_content:kw_max_avg`                             -1.164e+04  1.087e+04
+    ## `n_tokens_content:kw_avg_avg`                              1.910e+04  1.624e+04
+    ## `n_tokens_content:self_reference_min_shares`              -9.955e+03  2.462e+04
+    ## `n_tokens_content:self_reference_max_shares`              -9.555e+03  5.705e+04
+    ## `n_tokens_content:self_reference_avg_sharess`              2.260e+04  6.785e+04
+    ## `n_tokens_content:weekday_is_monday`                      -6.470e+03  2.593e+03
+    ## `n_tokens_content:weekday_is_tuesday`                     -3.865e+03  2.686e+03
+    ## `n_tokens_content:weekday_is_wednesday`                   -3.092e+03  3.613e+03
+    ## `n_tokens_content:weekday_is_thursday`                    -4.519e+03  2.938e+03
+    ## `n_tokens_content:weekday_is_friday`                      -3.724e+03  3.117e+03
+    ## `n_tokens_content:weekday_is_saturday`                    -3.916e+03  3.658e+03
+    ## `n_tokens_content:weekday_is_sunday`                              NA         NA
+    ## `n_tokens_content:is_weekend`                                     NA         NA
+    ## `n_tokens_content:LDA_00`                                  2.684e+03  2.563e+03
+    ## `n_tokens_content:LDA_01`                                 -3.460e+03  2.483e+03
+    ## `n_tokens_content:LDA_02`                                  5.582e+03  2.279e+03
+    ## `n_tokens_content:LDA_03`                                  3.504e+03  4.194e+03
+    ## `n_tokens_content:LDA_04`                                         NA         NA
+    ## `n_tokens_content:global_subjectivity`                     8.410e+03  1.464e+04
+    ## `n_tokens_content:global_sentiment_polarity`              -1.676e+04  1.370e+04
+    ## `n_tokens_content:global_rate_positive_words`             -5.161e+03  1.712e+04
+    ## `n_tokens_content:global_rate_negative_words`              9.349e+03  1.411e+04
+    ## `n_tokens_content:rate_positive_words`                     5.066e+04  4.811e+04
+    ##                                                           t value Pr(>|t|)    
+    ## (Intercept)                                                20.570  < 2e-16 ***
+    ## timedelta                                                  -0.269 0.788268    
+    ## n_tokens_title                                              0.269 0.788266    
+    ## n_tokens_content                                           -1.506 0.133154    
+    ## n_unique_tokens                                            -0.421 0.673907    
+    ## n_non_stop_words                                           -0.269 0.788266    
+    ## n_non_stop_unique_tokens                                   -0.748 0.455033    
+    ## num_hrefs                                                  -1.018 0.309460    
+    ## num_self_hrefs                                              1.009 0.313667    
+    ## num_imgs                                                   -0.269 0.788268    
+    ## num_videos                                                  0.269 0.788264    
+    ## average_token_length                                        1.029 0.304506    
+    ## num_keywords                                                0.269 0.788265    
+    ## data_channel_is_lifestyle                                      NA       NA    
+    ## kw_min_min                                                 -0.269 0.788266    
+    ## kw_max_min                                                 -0.269 0.788267    
+    ## kw_avg_min                                                  0.269 0.788266    
+    ## kw_min_max                                                  0.269 0.788262    
+    ## kw_max_max                                                 -0.269 0.788266    
+    ## kw_avg_max                                                 -0.269 0.788265    
+    ## kw_min_avg                                                  0.269 0.788283    
+    ## kw_max_avg                                                  0.269 0.788276    
+    ## kw_avg_avg                                                 -0.269 0.788272    
+    ## self_reference_min_shares                                  -0.306 0.760190    
+    ## self_reference_max_shares                                  -0.379 0.705229    
+    ## self_reference_avg_sharess                                  0.384 0.701073    
+    ## weekday_is_monday                                           0.490 0.624740    
+    ## weekday_is_tuesday                                          1.954 0.051720 .  
+    ## weekday_is_wednesday                                        0.891 0.373494    
+    ## weekday_is_thursday                                         1.917 0.056261 .  
+    ## weekday_is_friday                                           1.073 0.284351    
+    ## weekday_is_saturday                                         2.442 0.015194 *  
+    ## weekday_is_sunday                                              NA       NA    
+    ## is_weekend                                                     NA       NA    
+    ## LDA_00                                                     -1.226 0.221132    
+    ## LDA_01                                                      0.388 0.698356    
+    ## LDA_02                                                      0.180 0.857299    
+    ## LDA_03                                                      2.302 0.022067 *  
+    ## LDA_04                                                         NA       NA    
+    ## global_subjectivity                                        -1.285 0.199963    
+    ## global_sentiment_polarity                                   0.626 0.532129    
+    ## global_rate_positive_words                                 -0.566 0.572074    
+    ## global_rate_negative_words                                  1.044 0.297169    
+    ## rate_positive_words                                         0.789 0.430605    
+    ## rate_negative_words                                            NA       NA    
+    ## avg_positive_polarity                                      -0.694 0.488140    
+    ## min_positive_polarity                                       1.274 0.203685    
+    ## max_positive_polarity                                      -0.289 0.772605    
+    ## avg_negative_polarity                                      -0.463 0.643746    
+    ## min_negative_polarity                                      -0.016 0.986854    
+    ## max_negative_polarity                                       0.071 0.943773    
+    ## title_subjectivity                                         -0.389 0.697242    
+    ## title_sentiment_polarity                                    0.269 0.788271    
+    ## abs_title_subjectivity                                     -1.476 0.140986    
+    ## abs_title_sentiment_polarity                               -0.521 0.602934    
+    ## `timedelta:n_tokens_title`                                 -0.115 0.908509    
+    ## `timedelta:n_tokens_content`                                1.591 0.112686    
+    ## `timedelta:n_unique_tokens`                                 0.795 0.427113    
+    ## `timedelta:n_non_stop_words`                                0.269 0.788267    
+    ## `timedelta:n_non_stop_unique_tokens`                       -0.102 0.918807    
+    ## `timedelta:num_hrefs`                                      -1.740 0.082842 .  
+    ## `timedelta:num_self_hrefs`                                 -0.732 0.464514    
+    ## `timedelta:num_imgs`                                        1.024 0.306776    
+    ## `timedelta:num_videos`                                      1.950 0.052197 .  
+    ## `timedelta:average_token_length`                           -0.887 0.375659    
+    ## `timedelta:num_keywords`                                   -0.034 0.972749    
+    ## `timedelta:data_channel_is_lifestyle`                          NA       NA    
+    ## `timedelta:kw_min_min`                                     -0.872 0.384129    
+    ## `timedelta:kw_max_min`                                     -0.325 0.745645    
+    ## `timedelta:kw_avg_min`                                      0.667 0.505288    
+    ## `timedelta:kw_min_max`                                     -0.703 0.482604    
+    ## `timedelta:kw_max_max`                                     -0.812 0.417338    
+    ## `timedelta:kw_avg_max`                                     -0.057 0.954918    
+    ## `timedelta:kw_min_avg`                                     -0.613 0.540610    
+    ## `timedelta:kw_max_avg`                                     -0.477 0.633432    
+    ## `timedelta:kw_avg_avg`                                      0.030 0.976134    
+    ## `timedelta:self_reference_min_shares`                       1.295 0.196284    
+    ## `timedelta:self_reference_max_shares`                       1.043 0.297843    
+    ## `timedelta:self_reference_avg_sharess`                     -1.141 0.254992    
+    ## `timedelta:weekday_is_monday`                               1.112 0.267244    
+    ## `timedelta:weekday_is_tuesday`                              1.624 0.105538    
+    ## `timedelta:weekday_is_wednesday`                            1.015 0.310954    
+    ## `timedelta:weekday_is_thursday`                             1.150 0.251229    
+    ## `timedelta:weekday_is_friday`                               0.607 0.544417    
+    ## `timedelta:weekday_is_saturday`                             0.311 0.755861    
+    ## `timedelta:weekday_is_sunday`                                  NA       NA    
+    ## `timedelta:is_weekend`                                         NA       NA    
+    ## `timedelta:LDA_00`                                         -0.074 0.941060    
+    ## `timedelta:LDA_01`                                         -0.853 0.394600    
+    ## `timedelta:LDA_02`                                          1.245 0.214234    
+    ## `timedelta:LDA_03`                                          1.765 0.078563 .  
+    ## `timedelta:LDA_04`                                             NA       NA    
+    ## `timedelta:global_subjectivity`                             1.154 0.249347    
+    ## `timedelta:global_sentiment_polarity`                       1.332 0.183897    
+    ## `timedelta:global_rate_positive_words`                     -0.485 0.627960    
+    ## `timedelta:global_rate_negative_words`                     -0.393 0.694595    
+    ## `timedelta:rate_positive_words`                            -0.693 0.488862    
+    ## `timedelta:rate_negative_words`                                NA       NA    
+    ## `timedelta:avg_positive_polarity`                          -1.696 0.090943 .  
+    ## `timedelta:min_positive_polarity`                           0.852 0.394718    
+    ## `timedelta:max_positive_polarity`                           0.872 0.383898    
+    ## `timedelta:avg_negative_polarity`                          -1.549 0.122426    
+    ## `timedelta:min_negative_polarity`                          -0.016 0.987092    
+    ## `timedelta:max_negative_polarity`                           2.421 0.016096 *  
+    ## `timedelta:title_subjectivity`                              0.362 0.717579    
+    ## `timedelta:title_sentiment_polarity`                        0.125 0.900478    
+    ## `timedelta:abs_title_subjectivity`                         -0.078 0.937562    
+    ## `timedelta:abs_title_sentiment_polarity`                   -0.083 0.933859    
+    ## `n_tokens_title:n_tokens_content`                           0.423 0.672864    
+    ## `n_tokens_title:n_unique_tokens`                           -1.116 0.265303    
+    ## `n_tokens_title:n_non_stop_words`                          -0.269 0.788265    
+    ## `n_tokens_title:n_non_stop_unique_tokens`                   0.975 0.330465    
+    ## `n_tokens_title:num_hrefs`                                 -0.001 0.999588    
+    ## `n_tokens_title:num_self_hrefs`                            -0.279 0.780191    
+    ## `n_tokens_title:num_imgs`                                  -0.418 0.676452    
+    ## `n_tokens_title:num_videos`                                 1.507 0.132826    
+    ## `n_tokens_title:average_token_length`                       0.467 0.640895    
+    ## `n_tokens_title:num_keywords`                              -1.882 0.060800 .  
+    ## `n_tokens_title:data_channel_is_lifestyle`                     NA       NA    
+    ## `n_tokens_title:kw_min_min`                                 0.725 0.468977    
+    ## `n_tokens_title:kw_max_min`                                 2.015 0.044830 *  
+    ## `n_tokens_title:kw_avg_min`                                -1.976 0.049062 *  
+    ## `n_tokens_title:kw_min_max`                                -0.250 0.803097    
+    ## `n_tokens_title:kw_max_max`                                 0.488 0.625769    
+    ## `n_tokens_title:kw_avg_max`                                -1.717 0.086982 .  
+    ## `n_tokens_title:kw_min_avg`                                -0.897 0.370411    
+    ## `n_tokens_title:kw_max_avg`                                -0.412 0.680354    
+    ## `n_tokens_title:kw_avg_avg`                                 1.630 0.104084    
+    ## `n_tokens_title:self_reference_min_shares`                 -0.039 0.968614    
+    ## `n_tokens_title:self_reference_max_shares`                  0.190 0.849633    
+    ## `n_tokens_title:self_reference_avg_sharess`                -0.068 0.946197    
+    ## `n_tokens_title:weekday_is_monday`                         -2.529 0.011975 *  
+    ## `n_tokens_title:weekday_is_tuesday`                        -0.590 0.555484    
+    ## `n_tokens_title:weekday_is_wednesday`                      -1.909 0.057237 .  
+    ## `n_tokens_title:weekday_is_thursday`                       -2.615 0.009392 ** 
+    ## `n_tokens_title:weekday_is_friday`                         -1.879 0.061203 .  
+    ## `n_tokens_title:weekday_is_saturday`                       -1.371 0.171388    
+    ## `n_tokens_title:weekday_is_sunday`                             NA       NA    
+    ## `n_tokens_title:is_weekend`                                    NA       NA    
+    ## `n_tokens_title:LDA_00`                                    -1.760 0.079384 .  
+    ## `n_tokens_title:LDA_01`                                     0.198 0.842986    
+    ## `n_tokens_title:LDA_02`                                     0.924 0.356186    
+    ## `n_tokens_title:LDA_03`                                    -1.489 0.137667    
+    ## `n_tokens_title:LDA_04`                                        NA       NA    
+    ## `n_tokens_title:global_subjectivity`                        2.218 0.027312 *  
+    ## `n_tokens_title:global_sentiment_polarity`                 -1.435 0.152388    
+    ## `n_tokens_title:global_rate_positive_words`                 0.894 0.372097    
+    ## `n_tokens_title:global_rate_negative_words`                -0.850 0.395766    
+    ## `n_tokens_title:rate_positive_words`                       -0.318 0.750433    
+    ## `n_tokens_title:rate_negative_words`                           NA       NA    
+    ## `n_tokens_title:avg_positive_polarity`                     -0.290 0.772164    
+    ## `n_tokens_title:min_positive_polarity`                      1.114 0.266298    
+    ## `n_tokens_title:max_positive_polarity`                      2.016 0.044725 *  
+    ## `n_tokens_title:avg_negative_polarity`                      0.010 0.992110    
+    ## `n_tokens_title:min_negative_polarity`                      0.968 0.333795    
+    ## `n_tokens_title:max_negative_polarity`                     -0.370 0.711946    
+    ## `n_tokens_title:title_subjectivity`                         0.192 0.847653    
+    ## `n_tokens_title:title_sentiment_polarity`                  -0.342 0.732259    
+    ## `n_tokens_title:abs_title_subjectivity`                     0.067 0.946866    
+    ## `n_tokens_title:abs_title_sentiment_polarity`               0.033 0.973351    
+    ## `n_tokens_content:n_unique_tokens`                         -0.373 0.709577    
+    ## `n_tokens_content:n_non_stop_words`                            NA       NA    
+    ## `n_tokens_content:n_non_stop_unique_tokens`                 1.365 0.173178    
+    ## `n_tokens_content:num_hrefs`                                0.681 0.496257    
+    ## `n_tokens_content:num_self_hrefs`                           1.024 0.306801    
+    ## `n_tokens_content:num_imgs`                                 0.371 0.711228    
+    ## `n_tokens_content:num_videos`                              -1.864 0.063342 .  
+    ## `n_tokens_content:average_token_length`                    -0.995 0.320481    
+    ## `n_tokens_content:num_keywords`                             1.047 0.296160    
+    ## `n_tokens_content:data_channel_is_lifestyle`                   NA       NA    
+    ## `n_tokens_content:kw_min_min`                               0.044 0.964988    
+    ## `n_tokens_content:kw_max_min`                               0.637 0.524635    
+    ## `n_tokens_content:kw_avg_min`                              -1.156 0.248586    
+    ## `n_tokens_content:kw_min_max`                               0.325 0.745198    
+    ## `n_tokens_content:kw_max_max`                              -0.585 0.559020    
+    ## `n_tokens_content:kw_avg_max`                               0.229 0.818979    
+    ## `n_tokens_content:kw_min_avg`                              -1.255 0.210651    
+    ## `n_tokens_content:kw_max_avg`                              -1.070 0.285385    
+    ## `n_tokens_content:kw_avg_avg`                               1.176 0.240492    
+    ## `n_tokens_content:self_reference_min_shares`               -0.404 0.686257    
+    ## `n_tokens_content:self_reference_max_shares`               -0.167 0.867110    
+    ## `n_tokens_content:self_reference_avg_sharess`               0.333 0.739335    
+    ## `n_tokens_content:weekday_is_monday`                       -2.495 0.013139 *  
+    ## `n_tokens_content:weekday_is_tuesday`                      -1.439 0.151206    
+    ## `n_tokens_content:weekday_is_wednesday`                    -0.856 0.392838    
+    ## `n_tokens_content:weekday_is_thursday`                     -1.538 0.125173    
+    ## `n_tokens_content:weekday_is_friday`                       -1.194 0.233281    
+    ## `n_tokens_content:weekday_is_saturday`                     -1.071 0.285192    
+    ## `n_tokens_content:weekday_is_sunday`                           NA       NA    
+    ## `n_tokens_content:is_weekend`                                  NA       NA    
+    ## `n_tokens_content:LDA_00`                                   1.047 0.295893    
+    ## `n_tokens_content:LDA_01`                                  -1.394 0.164499    
+    ## `n_tokens_content:LDA_02`                                   2.449 0.014921 *  
+    ## `n_tokens_content:LDA_03`                                   0.836 0.404101    
+    ## `n_tokens_content:LDA_04`                                      NA       NA    
+    ## `n_tokens_content:global_subjectivity`                      0.575 0.566050    
+    ## `n_tokens_content:global_sentiment_polarity`               -1.224 0.222036    
+    ## `n_tokens_content:global_rate_positive_words`              -0.302 0.763206    
+    ## `n_tokens_content:global_rate_negative_words`               0.662 0.508244    
+    ## `n_tokens_content:rate_positive_words`                      1.053 0.293228    
     ##  [ reached getOption("max.print") -- omitted 1286 rows ]
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
@@ -1052,9 +1222,11 @@ boostTreeFit
     ##   4                  200      8245.212  0.005880425  3666.351
     ## 
     ## Tuning parameter 'shrinkage' was held constant at a value of 0.1
+    ## 
     ## Tuning parameter 'n.minobsinnode' was held constant at a value of 10
     ## RMSE was used to select the optimal model using the smallest value.
-    ## The final values used for the model were n.trees = 25, interaction.depth = 1, shrinkage = 0.1 and n.minobsinnode = 10.
+    ## The final values used for the model were n.trees = 25, interaction.depth =
+    ##  1, shrinkage = 0.1 and n.minobsinnode = 10.
 
 ``` r
 #viewing the resulting model
