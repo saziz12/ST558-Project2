@@ -466,6 +466,7 @@ the amount of shares shift as the number of keywords in the metadata for the
 article changes.  
 
 ## Modeling
+
 Now that we've explored some summaries and statistics using our data, we will 
 now fit some models using our train set then test them using the test set.  
 We will first fit two linear regression models. Linear regression is a statistical 
@@ -514,9 +515,12 @@ l2 <- postResample(pred, obs = channelTest$shares)
 l2
 ```
 
-The next model we will explore is a boosted tree model.  
-
-
+The next model we will explore is a boosted tree model. A boosted tree is 
+an ensemble based model that treats the errors created by previous decision 
+trees. By considering the errors of trees in previous rounds, the boosted
+tree model forms new trees sequentially where each tree is dependent on the
+previous tree. These kinds of models are useful for non-linear data, which make
+them great for real world applications.
 
 ```{r Boosted Tree, message=FALSE, warning=FALSE}
 allTuningParameters <- expand.grid(n.trees=c(25,50,100,150,200), 
@@ -555,28 +559,29 @@ randomForestFit <- train(shares ~ ., data = channelTrain,
                       tuneGrid = expand.grid(mtry = 1:15))
 # Fitting the random forests model
 
-randomForestsFit
+randomForestFit
 # Viewing the resulting model
 
-pred <- predict(randomForestsFit, newdata = channelTest)
+pred <- predict(randomForestFit, newdata = channelTest)
 rf <- postResample(pred, obs = channelTest$shares)
 rf
 ```
 
 
 ## Comparison
+
 Now that we've fit and tested the above four models using our train and test 
 sets. We will now compare all four models to pick the best one overall.  
 
 ```{r Comparison}
 modelList <- list(firstLinearModel = l1[[1]], secondLinearModel = l2[[1]], 
-                  boostedTree = bt[[1]], randomForests = rf[[1]])
+                  boostedTree = bt[[1]], randomForest = rf[[1]])
 # Storing all RMSE in one list
 
 bestModel <- names(modelList)[which.min(modelList)]
 # Finding model with lowest RMSE
 
-bestModel
+paste("The best model with the lowest RMSE was", bestModel, sep=" ")
 # Printing model with lowest RMSE
 ```
 
