@@ -33,28 +33,29 @@ A link to each report can be found below.
 
 ### Code Used to Create the Analyses
 
-`library(tidyverse)`
+`library(tidyverse)`  
 
-`data <- read_csv("data/OnlineNewsPopularity.csv", show_col_types=FALSE)`
+`data <- read_csv("data/OnlineNewsPopularity.csv", show_col_types=FALSE)`  
 
-`channel_vars <- data %>% select(starts_with("data_channel_is_")) %>% 
-  pivot_longer(cols=everything(), names_to = "Channels")`
+`channel_vars <- data %>% select(starts_with("data_channel_is_")) %>%   
+  pivot_longer(cols=everything(), names_to = "Channels")`  
 
-`strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))`
+`strings <- unlist(strsplit(unique(channel_vars$Channels),split = '_'))`  
 
-`channel_names <- c()`
+`channel_names <- c()`  
 
-`for(i in 1:length(strings))`{
-  `if(!(strings[i] %in% c("data", "channel", "is")))`{
-    `channel_names[i] <- strings[i]`
-  }
-}
-`channel_names <- channel_names[!is.na(channel_names)]` 
+`for(i in 1:length(strings))`{  
+  `if(!(strings[i] %in% c("data", "channel", "is")))`{  
+    `channel_names[i] <- strings[i]`  
+  }  
+}  
+`channel_names <- channel_names[!is.na(channel_names)]`  
 
-`for(i in 1:length(channel_names))`{
-  `params<<-list(data_channel=channel_names[i])`
-  `rmarkdown::render(input = "index.Rmd", output_file = channel_names[i], 
-                    params=params, 
-                    output_format = "github_document", 
-                    output_options = list(html_preview=FALSE))`
-}
+`for(i in 1:length(channel_names))`{  
+  `params<<-list(data_channel=channel_names[i])`  
+  `rmarkdown::render(input = "index.Rmd", output_file = channel_names[i],  
+                    params=params,  
+                    output_format = "github_document",  
+                    output_options = list(html_preview=FALSE))`  
+}  
+  
